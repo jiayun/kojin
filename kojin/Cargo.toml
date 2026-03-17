@@ -1,0 +1,19 @@
+[package]
+name = "kojin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+kojin-core = { path = "../kojin-core" }
+kojin-macros = { path = "../kojin-macros" }
+
+[features]
+default = ["redis"]
+redis = ["dep:kojin-redis"]
+
+[dependencies.kojin-redis]
+path = "../kojin-redis"
+optional = true
