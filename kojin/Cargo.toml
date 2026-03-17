@@ -9,6 +9,10 @@ rust-version.workspace = true
 [dependencies]
 kojin-core = { path = "../kojin-core" }
 kojin-macros = { path = "../kojin-macros" }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
 
 [features]
 default = ["redis"]
@@ -17,3 +21,7 @@ redis = ["dep:kojin-redis"]
 [dependencies.kojin-redis]
 path = "../kojin-redis"
 optional = true
+
+[dev-dependencies]
+tokio = { workspace = true }
+tracing-subscriber = "0.3"

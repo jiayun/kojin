@@ -13,3 +13,11 @@ proc-macro = true
 syn = { workspace = true }
 quote = { workspace = true }
 proc-macro2 = { workspace = true }
+
+[dev-dependencies]
+trybuild = "1"
+kojin-core = { path = "../kojin-core" }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

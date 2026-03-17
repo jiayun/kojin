@@ -15,3 +15,8 @@ thiserror = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true }
+tokio-util = { workspace = true }
+
+[dev-dependencies]
+tracing-test = "0.2"
+tracing-subscriber = "0.3"

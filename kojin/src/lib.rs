@@ -1,14 +1,12 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+// Re-export everything from kojin-core
+pub use kojin_core::*;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// Re-export the task proc-macro
+pub use kojin_macros::task;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+// Re-export Redis broker when feature is enabled
+#[cfg(feature = "redis")]
+pub use kojin_redis::{RedisBroker, RedisConfig};
+
+mod builder;
+pub use builder::KojinBuilder;

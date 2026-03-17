@@ -1,14 +1,33 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+pub mod backoff;
+pub mod broker;
+pub mod codec;
+pub mod context;
+pub mod error;
+pub mod memory_broker;
+pub mod message;
+pub mod middleware;
+pub mod queue_weight;
+pub mod registry;
+pub mod result_backend;
+pub mod shutdown;
+pub mod state;
+pub mod task;
+pub mod task_id;
+pub mod worker;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+// Re-export key types at crate root
+pub use backoff::BackoffStrategy;
+pub use broker::Broker;
+pub use codec::{Codec, JsonCodec};
+pub use context::TaskContext;
+pub use error::{KojinError, TaskResult};
+pub use memory_broker::MemoryBroker;
+pub use message::TaskMessage;
+pub use middleware::{MetricsMiddleware, Middleware, TracingMiddleware};
+pub use queue_weight::{QueueWeight, WeightedQueue};
+pub use registry::TaskRegistry;
+pub use result_backend::ResultBackend;
+pub use state::TaskState;
+pub use task::Task;
+pub use task_id::TaskId;
+pub use worker::{Worker, WorkerConfig};
