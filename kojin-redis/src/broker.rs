@@ -186,11 +186,11 @@ impl Broker for RedisBroker {
 #[cfg(all(test, feature = "integration-tests"))]
 mod tests {
     use super::*;
-    use testcontainers::runners::AsyncRunner;
+    use testcontainers::{runners::AsyncRunner, ImageExt};
     use testcontainers_modules::redis::Redis;
 
     async fn setup_broker() -> (RedisBroker, testcontainers::ContainerAsync<Redis>) {
-        let container = Redis.start().await.unwrap();
+        let container = Redis::default().with_tag("7").start().await.unwrap();
         let port = container.get_host_port_ipv4(6379).await.unwrap();
         let config = RedisConfig::new(format!("redis://127.0.0.1:{port}")).with_prefix("test");
         let broker = RedisBroker::new(config).await.unwrap();
