@@ -75,8 +75,8 @@ impl Task for ProcessImage {
 1. **kojin-core**: Task/Broker/ResultBackend/Middleware traits, TaskMessage, TaskState enum, BackoffStrategy, error types
 2. **kojin-macros**: `#[kojin::task]` proc-macro → generates struct + Task impl
 3. **kojin-redis**: Redis broker (BRPOPLPUSH, sorted set for scheduled, list for DLQ), connection pooling via deadpool-redis
-4. **Worker**: concurrency control, task dispatch, graceful shutdown
-5. **Built-in middleware**: RetryMiddleware, TimeoutMiddleware, TracingMiddleware
+4. **Worker**: concurrency control, task dispatch, graceful shutdown, weighted queue consumption
+5. **Built-in middleware**: RetryMiddleware, TimeoutMiddleware, TracingMiddleware, MetricsMiddleware
 6. **kojin facade**: feature-flag re-exports
 7. **Tests**: MemoryBroker for unit tests, testcontainers for Redis integration tests, trybuild for macro tests
 
@@ -97,9 +97,59 @@ impl Task for ProcessImage {
 ### Phase 4: Advanced
 
 1. **kojin-sqs**: AWS SQS broker
-2. **Cross-language interop** (Celery protocol v2 compatible wire format)
-3. **Task deduplication / idempotency**
-4. **Kubernetes-native patterns**
+2. **Task deduplication / idempotency**
+3. **Kubernetes-native patterns**
+4. **Cross-language interop** — language-agnostic JSON message schema over shared broker, enabling mixed Rust/Python (Celery, Dramatiq) worker pools; optionally Celery protocol v2 wire format for direct interop
+
+---
+
+## Worker Autoscaling & Cloud-Native Deployment
+
+A common pain point with Redis-backed task queues (Celery, Dramatiq, BullMQ) is the lack of native autoscaling signals — dedicated worker instances for batch/low-priority queues run 24/7, wasting resources during idle time. Kojin addresses this at multiple levels.
+
+### Weighted Queue Consumption (Phase 1)
+
+Workers consume multiple queues with configurable priority weights, eliminating the need for dedicated batch instances:
+
+```rust
+app.run_worker_with(WorkerConfig::builder()
+    .queue("critical", QueueWeight::High)   // prioritized
+    .queue("batch", QueueWeight::Low)        // fills idle time
+    .concurrency(16)
+    .build())
+    .await?;
+```
+
+A single worker pool handles both critical and batch tasks — batch work is automatically consumed during idle periods without dedicated infrastructure.
+
+### Queue Metrics for Autoscaling (Phase 1)
+
+`MetricsMiddleware` exports queue depth and worker utilization to external metric systems (CloudWatch, Prometheus), enabling container orchestrators to autoscale — including scale-to-zero:
+
+```rust
+Kojin::builder()
+    .middleware(MetricsMiddleware::cloudwatch("kojin/queue_depth"))
+    .build();
+```
+
+Example ECS autoscaling policy: scale up when queue depth > 100, scale to zero after 5 minutes at depth 0.
+
+### Graceful Shutdown / SIGTERM Drain (Phase 1)
+
+Critical for autoscaling — workers must handle scale-down without losing tasks:
+
+```rust
+app.run_worker_with(WorkerConfig::builder()
+    .shutdown_timeout(Duration::from_secs(120)) // match ECS stopTimeout
+    .build())
+    .await?;
+```
+
+On SIGTERM: (1) stop dequeuing new tasks, (2) wait for in-flight tasks to complete within timeout, (3) nack unfinished tasks back to the queue for redelivery.
+
+### Native SQS Autoscaling (Phase 4)
+
+The `kojin-sqs` broker provides zero-config autoscaling on AWS — ECS natively scales on `ApproximateNumberOfMessages` without any custom metrics infrastructure.
 
 ---
 
@@ -111,6 +161,7 @@ impl Task for ProcessImage {
 4. Result backend separated from broker
 5. Simpler middleware (not Tower)
 6. Production-grade defaults (visibility timeout, reaper, graceful shutdown)
+7. Built-in autoscaling support (queue metrics export, weighted queues, graceful SIGTERM drain)
 
 ---
 
