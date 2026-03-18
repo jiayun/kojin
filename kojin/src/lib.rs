@@ -13,6 +13,8 @@
 //! - `#[kojin::task]` proc-macro for defining tasks
 //! - Pluggable broker trait (Redis included)
 //! - Composable middleware (tracing, metrics)
+//! - Workflow orchestration: chain, group, chord
+//! - Result backends (memory, Redis, PostgreSQL)
 //! - Graceful shutdown, weighted queues, configurable retries
 //!
 //! ## Quick Start
@@ -37,9 +39,13 @@ pub use kojin_core::*;
 // Re-export the task proc-macro
 pub use kojin_macros::task;
 
-// Re-export Redis broker when feature is enabled
+// Re-export Redis broker + result backend when feature is enabled
 #[cfg(feature = "redis")]
-pub use kojin_redis::{RedisBroker, RedisConfig};
+pub use kojin_redis::{RedisBroker, RedisConfig, RedisResultBackend};
+
+// Re-export PostgreSQL result backend when feature is enabled
+#[cfg(feature = "postgres")]
+pub use kojin_postgres::PostgresResultBackend;
 
 mod builder;
 pub use builder::KojinBuilder;

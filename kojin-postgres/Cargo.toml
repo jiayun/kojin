@@ -1,0 +1,31 @@
+[package]
+name = "kojin-postgres"
+description = "PostgreSQL result backend for the kojin task queue"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/kojin-postgres"
+readme = "../README.md"
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+integration-tests = []
+
+[dependencies]
+kojin-core = { path = "../kojin-core", version = "0.1.0" }
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "chrono", "json"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+testcontainers = "0.23"
+testcontainers-modules = { version = "0.11", features = ["postgres"] }

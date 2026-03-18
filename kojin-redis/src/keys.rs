@@ -35,6 +35,26 @@ impl KeyBuilder {
     pub fn message(&self, id: &str) -> String {
         format!("{}:msg:{}", self.prefix, id)
     }
+
+    /// Result key: `{prefix}:result:{id}`
+    pub fn result(&self, id: &str) -> String {
+        format!("{}:result:{}", self.prefix, id)
+    }
+
+    /// Group total key: `{prefix}:group:{id}:total`
+    pub fn group_total(&self, group_id: &str) -> String {
+        format!("{}:group:{}:total", self.prefix, group_id)
+    }
+
+    /// Group completed counter key: `{prefix}:group:{id}:completed`
+    pub fn group_completed(&self, group_id: &str) -> String {
+        format!("{}:group:{}:completed", self.prefix, group_id)
+    }
+
+    /// Group results list key: `{prefix}:group:{id}:results`
+    pub fn group_results(&self, group_id: &str) -> String {
+        format!("{}:group:{}:results", self.prefix, group_id)
+    }
 }
 
 #[cfg(test)]
@@ -49,5 +69,9 @@ mod tests {
         assert_eq!(kb.scheduled(), "kojin:scheduled");
         assert_eq!(kb.dlq("default"), "kojin:dlq:default");
         assert_eq!(kb.message("abc"), "kojin:msg:abc");
+        assert_eq!(kb.result("abc"), "kojin:result:abc");
+        assert_eq!(kb.group_total("g1"), "kojin:group:g1:total");
+        assert_eq!(kb.group_completed("g1"), "kojin:group:g1:completed");
+        assert_eq!(kb.group_results("g1"), "kojin:group:g1:results");
     }
 }

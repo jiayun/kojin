@@ -13,6 +13,10 @@ readme = "../README.md"
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+default = []
+cron = ["dep:cron"]
+
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -23,6 +27,7 @@ async-trait = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
+cron = { version = "0.15", optional = true }
 
 [dev-dependencies]
 tracing-test = "0.2"

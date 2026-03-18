@@ -30,6 +30,23 @@ pub struct TaskMessage {
     pub eta: Option<DateTime<Utc>>,
     /// Arbitrary headers for middleware / tracing propagation.
     pub headers: HashMap<String, String>,
+
+    // -- Workflow metadata (Phase 2) --
+    /// Parent task ID for workflow tracking.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_id: Option<TaskId>,
+    /// Correlation ID for tracing an entire workflow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub correlation_id: Option<String>,
+    /// Group ID this task belongs to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group_id: Option<String>,
+    /// Total number of tasks in the group.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group_total: Option<u32>,
+    /// Chord callback to enqueue when all group members complete.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chord_callback: Option<Box<TaskMessage>>,
 }
 
 impl TaskMessage {
@@ -52,6 +69,11 @@ impl TaskMessage {
             updated_at: now,
             eta: None,
             headers: HashMap::new(),
+            parent_id: None,
+            correlation_id: None,
+            group_id: None,
+            group_total: None,
+            chord_callback: None,
         }
     }
 
@@ -70,6 +92,31 @@ impl TaskMessage {
     /// Add a header.
     pub fn with_header(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.headers.insert(key.into(), value.into());
+        self
+    }
+
+    /// Set parent task ID for workflow tracking.
+    pub fn with_parent_id(mut self, parent_id: TaskId) -> Self {
+        self.parent_id = Some(parent_id);
+        self
+    }
+
+    /// Set correlation ID for tracing an entire workflow.
+    pub fn with_correlation_id(mut self, correlation_id: impl Into<String>) -> Self {
+        self.correlation_id = Some(correlation_id.into());
+        self
+    }
+
+    /// Set group metadata.
+    pub fn with_group(mut self, group_id: impl Into<String>, group_total: u32) -> Self {
+        self.group_id = Some(group_id.into());
+        self.group_total = Some(group_total);
+        self
+    }
+
+    /// Set chord callback.
+    pub fn with_chord_callback(mut self, callback: TaskMessage) -> Self {
+        self.chord_callback = Some(Box::new(callback));
         self
     }
 }
@@ -106,5 +153,55 @@ mod tests {
         assert_eq!(msg.max_retries, 3);
         assert!(msg.eta.is_none());
         assert!(msg.headers.is_empty());
+        assert!(msg.parent_id.is_none());
+        assert!(msg.correlation_id.is_none());
+        assert!(msg.group_id.is_none());
+        assert!(msg.group_total.is_none());
+        assert!(msg.chord_callback.is_none());
+    }
+
+    #[test]
+    fn backward_compat_deserialization() {
+        // Simulate a v0.1.0 message without workflow fields
+        let old_json = serde_json::json!({
+            "id": "01234567-89ab-cdef-0123-456789abcdef",
+            "task_name": "send_email",
+            "queue": "default",
+            "payload": {"to": "a@b.com"},
+            "state": "pending",
+            "retries": 0,
+            "max_retries": 3,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z",
+            "eta": null,
+            "headers": {}
+        });
+        let msg: TaskMessage = serde_json::from_value(old_json).unwrap();
+        assert_eq!(msg.task_name, "send_email");
+        assert!(msg.parent_id.is_none());
+        assert!(msg.correlation_id.is_none());
+        assert!(msg.group_id.is_none());
+        assert!(msg.group_total.is_none());
+        assert!(msg.chord_callback.is_none());
+    }
+
+    #[test]
+    fn workflow_metadata_roundtrip() {
+        let callback = TaskMessage::new("callback", "default", serde_json::json!({}));
+        let msg = TaskMessage::new("task", "default", serde_json::json!({}))
+            .with_parent_id(TaskId::new())
+            .with_correlation_id("corr-123")
+            .with_group("group-1", 5)
+            .with_chord_callback(callback);
+
+        let json = serde_json::to_string(&msg).unwrap();
+        let deserialized: TaskMessage = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(msg.parent_id, deserialized.parent_id);
+        assert_eq!(msg.correlation_id, deserialized.correlation_id);
+        assert_eq!(msg.group_id, deserialized.group_id);
+        assert_eq!(msg.group_total, deserialized.group_total);
+        assert!(deserialized.chord_callback.is_some());
+        assert_eq!(deserialized.chord_callback.unwrap().task_name, "callback");
     }
 }

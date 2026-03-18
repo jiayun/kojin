@@ -1,7 +1,10 @@
+use std::sync::Arc;
+
 use kojin_core::broker::Broker;
 use kojin_core::context::TaskContext;
 use kojin_core::middleware::Middleware;
 use kojin_core::registry::TaskRegistry;
+use kojin_core::result_backend::ResultBackend;
 use kojin_core::task::Task;
 use kojin_core::worker::{Worker, WorkerConfig};
 
@@ -12,6 +15,9 @@ pub struct KojinBuilder<B: Broker> {
     context: TaskContext,
     middlewares: Vec<Box<dyn Middleware>>,
     config: WorkerConfig,
+    result_backend: Option<Arc<dyn ResultBackend>>,
+    #[cfg(feature = "cron")]
+    cron_registry: kojin_core::cron::CronRegistry,
 }
 
 impl<B: Broker> KojinBuilder<B> {
@@ -23,6 +29,9 @@ impl<B: Broker> KojinBuilder<B> {
             context: TaskContext::new(),
             middlewares: Vec::new(),
             config: WorkerConfig::default(),
+            result_backend: None,
+            #[cfg(feature = "cron")]
+            cron_registry: kojin_core::cron::CronRegistry::new(),
         }
     }
 
@@ -62,11 +71,35 @@ impl<B: Broker> KojinBuilder<B> {
         self
     }
 
+    /// Set the result backend for storing task results and workflow coordination.
+    pub fn result_backend(mut self, rb: impl ResultBackend) -> Self {
+        self.result_backend = Some(Arc::new(rb));
+        self
+    }
+
+    /// Add a cron schedule entry.
+    #[cfg(feature = "cron")]
+    pub fn cron(
+        mut self,
+        name: impl Into<String>,
+        expression: &str,
+        signature: kojin_core::signature::Signature,
+    ) -> Self {
+        match kojin_core::cron::CronEntry::new(name, expression, signature) {
+            Ok(entry) => self.cron_registry.add(entry),
+            Err(e) => panic!("Invalid cron expression: {e}"),
+        }
+        self
+    }
+
     /// Build the worker.
     pub fn build(self) -> Worker<B> {
         let mut worker = Worker::new(self.broker, self.registry, self.context, self.config);
         for mw in self.middlewares {
             worker = worker.with_middleware_boxed(mw);
+        }
+        if let Some(rb) = self.result_backend {
+            worker = worker.with_result_backend(rb);
         }
         worker
     }

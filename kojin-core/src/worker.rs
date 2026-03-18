@@ -9,6 +9,8 @@ use crate::context::TaskContext;
 use crate::error::KojinError;
 use crate::message::TaskMessage;
 use crate::middleware::Middleware;
+use crate::result_backend::ResultBackend;
+use crate::signature::Signature;
 
 use crate::registry::TaskRegistry;
 use crate::state::TaskState;
@@ -45,6 +47,7 @@ pub struct Worker<B: Broker> {
     context: Arc<TaskContext>,
     config: WorkerConfig,
     cancel: CancellationToken,
+    result_backend: Option<Arc<dyn ResultBackend>>,
 }
 
 impl<B: Broker> Worker<B> {
@@ -61,7 +64,14 @@ impl<B: Broker> Worker<B> {
             context: Arc::new(context),
             config,
             cancel: CancellationToken::new(),
+            result_backend: None,
         }
+    }
+
+    /// Set the result backend.
+    pub fn with_result_backend(mut self, backend: Arc<dyn ResultBackend>) -> Self {
+        self.result_backend = Some(backend);
+        self
     }
 
     /// Add middleware to the worker pipeline.
@@ -139,10 +149,19 @@ impl<B: Broker> Worker<B> {
             let registry = self.registry.clone();
             let middlewares = self.middlewares.clone();
             let context = self.context.clone();
+            let result_backend = self.result_backend.clone();
 
             tokio::spawn(async move {
                 let _permit = permit; // Hold permit until done
-                execute_task(broker, registry, middlewares, context, message).await;
+                execute_task(
+                    broker,
+                    registry,
+                    middlewares,
+                    context,
+                    message,
+                    result_backend,
+                )
+                .await;
             });
         }
 
@@ -171,6 +190,7 @@ async fn execute_task<B: Broker>(
     middlewares: Arc<Vec<Box<dyn Middleware>>>,
     context: Arc<TaskContext>,
     mut message: TaskMessage,
+    result_backend: Option<Arc<dyn ResultBackend>>,
 ) {
     let task_id = message.id;
     let task_name = message.task_name.clone();
@@ -203,6 +223,118 @@ async fn execute_task<B: Broker>(
             if let Err(e) = broker.ack(&task_id).await {
                 tracing::error!(task_id = %task_id, error = %e, "Failed to ack task");
             }
+
+            // Store result in backend
+            if let Some(ref backend) = result_backend {
+                if let Err(e) = backend.store(&task_id, &result).await {
+                    tracing::error!(task_id = %task_id, error = %e, "Failed to store result");
+                }
+
+                // Handle group completion
+                if let Some(ref group_id) = message.group_id {
+                    match backend
+                        .complete_group_member(group_id, &task_id, &result)
+                        .await
+                    {
+                        Ok(completed) => {
+                            let total = message.group_total.unwrap_or(0);
+                            tracing::debug!(
+                                task_id = %task_id,
+                                group_id = %group_id,
+                                completed = completed,
+                                total = total,
+                                "Group member completed"
+                            );
+                            // If all group members are done and there's a chord callback, enqueue it
+                            if completed == total {
+                                if let Some(chord_callback) = message.chord_callback.take() {
+                                    let mut callback_msg = *chord_callback;
+                                    // Inject group results into the callback payload via header
+                                    if let Ok(group_results) =
+                                        backend.get_group_results(group_id).await
+                                    {
+                                        if let Ok(json) = serde_json::to_string(&group_results) {
+                                            callback_msg
+                                                .headers
+                                                .insert("kojin.group_results".to_string(), json);
+                                        }
+                                    }
+                                    if let Err(e) = broker.enqueue(callback_msg).await {
+                                        tracing::error!(
+                                            group_id = %group_id,
+                                            error = %e,
+                                            "Failed to enqueue chord callback"
+                                        );
+                                    } else {
+                                        tracing::info!(
+                                            group_id = %group_id,
+                                            "Chord callback enqueued"
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!(
+                                task_id = %task_id,
+                                group_id = %group_id,
+                                error = %e,
+                                "Failed to complete group member"
+                            );
+                        }
+                    }
+                }
+
+                // Handle chain continuation
+                if let Some(chain_next_json) = message.headers.get("kojin.chain_next") {
+                    match serde_json::from_str::<Vec<Signature>>(chain_next_json) {
+                        Ok(remaining) if !remaining.is_empty() => {
+                            let mut next_msg = remaining[0].clone().into_message();
+                            // Pass current result as input to next task
+                            if let Ok(json) = serde_json::to_string(&result) {
+                                next_msg
+                                    .headers
+                                    .insert("kojin.chain_input".to_string(), json);
+                            }
+                            // Propagate correlation_id
+                            if let Some(ref corr) = message.correlation_id {
+                                next_msg.correlation_id = Some(corr.clone());
+                            }
+                            // Store remaining chain steps (skip first)
+                            if remaining.len() > 1 {
+                                let rest: Vec<Signature> = remaining[1..].to_vec();
+                                if let Ok(json) = serde_json::to_string(&rest) {
+                                    next_msg
+                                        .headers
+                                        .insert("kojin.chain_next".to_string(), json);
+                                }
+                            }
+                            if let Err(e) = broker.enqueue(next_msg).await {
+                                tracing::error!(
+                                    task_id = %task_id,
+                                    error = %e,
+                                    "Failed to enqueue chain continuation"
+                                );
+                            } else {
+                                tracing::info!(
+                                    task_id = %task_id,
+                                    remaining = remaining.len() - 1,
+                                    "Chain continuation enqueued"
+                                );
+                            }
+                        }
+                        Ok(_) => {} // Empty remaining, chain done
+                        Err(e) => {
+                            tracing::error!(
+                                task_id = %task_id,
+                                error = %e,
+                                "Failed to deserialize chain_next"
+                            );
+                        }
+                    }
+                }
+            }
+
             tracing::info!(task_id = %task_id, task_name = %task_name, "Task completed successfully");
         }
         Err(e) => {
@@ -264,6 +396,7 @@ async fn handle_failure<B: Broker>(
 mod tests {
     use super::*;
     use crate::memory_broker::MemoryBroker;
+    use crate::memory_result_backend::MemoryResultBackend;
     use crate::task::Task;
     use async_trait::async_trait;
     use serde::{Deserialize, Serialize};
@@ -288,7 +421,7 @@ mod tests {
 
     #[tokio::test]
     async fn worker_processes_tasks() {
-        COUNTER.store(0, Ordering::SeqCst);
+        let before = COUNTER.load(Ordering::SeqCst);
 
         let broker = MemoryBroker::new();
         let mut registry = TaskRegistry::new();
@@ -326,7 +459,8 @@ mod tests {
         cancel.cancel();
         handle.await.unwrap();
 
-        assert_eq!(COUNTER.load(Ordering::SeqCst), 3);
+        let after = COUNTER.load(Ordering::SeqCst);
+        assert_eq!(after - before, 3);
     }
 
     #[derive(Debug, Serialize, Deserialize)]
@@ -404,5 +538,119 @@ mod tests {
             .await
             .expect("Worker should shutdown within timeout")
             .unwrap();
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct AddTask {
+        a: i32,
+        b: i32,
+    }
+
+    #[async_trait]
+    impl Task for AddTask {
+        const NAME: &'static str = "add";
+        const MAX_RETRIES: u32 = 0;
+        type Output = i32;
+
+        async fn run(&self, _ctx: &TaskContext) -> crate::error::TaskResult<Self::Output> {
+            Ok(self.a + self.b)
+        }
+    }
+
+    #[tokio::test]
+    async fn worker_stores_results() {
+        let broker = MemoryBroker::new();
+        let backend = Arc::new(MemoryResultBackend::new());
+        let mut registry = TaskRegistry::new();
+        registry.register::<AddTask>();
+
+        let msg = TaskMessage::new("add", "default", serde_json::json!({"a": 3, "b": 4}));
+        let task_id = msg.id;
+        broker.enqueue(msg).await.unwrap();
+
+        let config = WorkerConfig {
+            concurrency: 1,
+            queues: vec!["default".to_string()],
+            shutdown_timeout: Duration::from_secs(5),
+            dequeue_timeout: Duration::from_millis(100),
+        };
+
+        let worker = Worker::new(broker.clone(), registry, TaskContext::new(), config)
+            .with_result_backend(backend.clone());
+        let cancel = worker.cancel_token();
+
+        let handle = tokio::spawn(async move {
+            worker.run().await;
+        });
+
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        cancel.cancel();
+        handle.await.unwrap();
+
+        let result = backend.get(&task_id).await.unwrap();
+        assert_eq!(result, Some(serde_json::json!(7)));
+    }
+
+    static CHAIN_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct ChainCountTask;
+
+    #[async_trait]
+    impl Task for ChainCountTask {
+        const NAME: &'static str = "chain_count";
+        const MAX_RETRIES: u32 = 0;
+        type Output = u32;
+
+        async fn run(&self, _ctx: &TaskContext) -> crate::error::TaskResult<Self::Output> {
+            let val = CHAIN_COUNTER.fetch_add(1, Ordering::SeqCst) + 1;
+            Ok(val)
+        }
+    }
+
+    #[tokio::test]
+    async fn worker_chain_continuation() {
+        let broker = MemoryBroker::new();
+        let backend = Arc::new(MemoryResultBackend::new());
+        let mut registry = TaskRegistry::new();
+        registry.register::<ChainCountTask>();
+
+        let before = CHAIN_COUNTER.load(Ordering::SeqCst);
+
+        // Build a chain: chain_count -> chain_count -> chain_count
+        let remaining = vec![
+            crate::signature::Signature::new("chain_count", "default", serde_json::json!(null)),
+            crate::signature::Signature::new("chain_count", "default", serde_json::json!(null)),
+        ];
+        let mut msg =
+            TaskMessage::new("chain_count", "default", serde_json::json!(null)).with_max_retries(0);
+        msg.headers.insert(
+            "kojin.chain_next".to_string(),
+            serde_json::to_string(&remaining).unwrap(),
+        );
+        broker.enqueue(msg).await.unwrap();
+
+        let config = WorkerConfig {
+            concurrency: 1,
+            queues: vec!["default".to_string()],
+            shutdown_timeout: Duration::from_secs(5),
+            dequeue_timeout: Duration::from_millis(100),
+        };
+
+        let worker = Worker::new(broker.clone(), registry, TaskContext::new(), config)
+            .with_result_backend(backend);
+        let cancel = worker.cancel_token();
+
+        let handle = tokio::spawn(async move {
+            worker.run().await;
+        });
+
+        tokio::time::sleep(Duration::from_millis(1500)).await;
+        cancel.cancel();
+        handle.await.unwrap();
+
+        // All 3 tasks in the chain should have executed
+        let after = CHAIN_COUNTER.load(Ordering::SeqCst);
+        assert_eq!(after - before, 3);
     }
 }

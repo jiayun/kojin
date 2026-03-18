@@ -4,6 +4,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use crate::backoff::BackoffStrategy;
 use crate::context::TaskContext;
 use crate::error::TaskResult;
+use crate::signature::Signature;
 
 /// A unit of work that can be enqueued and executed by a worker.
 #[async_trait]
@@ -27,4 +28,14 @@ pub trait Task: Send + Sync + Serialize + DeserializeOwned + 'static {
 
     /// Execute the task.
     async fn run(&self, ctx: &TaskContext) -> TaskResult<Self::Output>;
+
+    /// Build a [`Signature`] from this task instance.
+    fn signature(&self) -> Signature {
+        Signature::new(
+            Self::NAME,
+            Self::QUEUE,
+            serde_json::to_value(self).expect("task must be serializable"),
+        )
+        .with_max_retries(Self::MAX_RETRIES)
+    }
 }

@@ -24,12 +24,24 @@ tokio = { workspace = true }
 [features]
 default = ["redis"]
 redis = ["dep:kojin-redis"]
+postgres = ["dep:kojin-postgres"]
+cron = ["kojin-core/cron"]
 
 [dependencies.kojin-redis]
 path = "../kojin-redis"
 version = "0.1.0"
 optional = true
 
+[dependencies.kojin-postgres]
+path = "../kojin-postgres"
+version = "0.1.0"
+optional = true
+
 [dev-dependencies]
 tokio = { workspace = true }
 tracing-subscriber = "0.3"
+chrono = { workspace = true }
+
+[[example]]
+name = "cron"
+required-features = ["cron"]
