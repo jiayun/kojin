@@ -1,10 +1,17 @@
 [package]
 name = "kojin-macros"
+description = "Proc-macro support for the kojin task queue (#[kojin::task])"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/kojin-macros"
+readme = "../README.md"
+keywords.workspace = true
+categories.workspace = true
 
 [lib]
 proc-macro = true

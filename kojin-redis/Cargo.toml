@@ -1,16 +1,23 @@
 [package]
 name = "kojin-redis"
+description = "Redis broker backend for the kojin task queue"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/kojin-redis"
+readme = "../README.md"
+keywords.workspace = true
+categories.workspace = true
 
 [features]
 integration-tests = []
 
 [dependencies]
-kojin-core = { path = "../kojin-core" }
+kojin-core = { path = "../kojin-core", version = "0.1.0" }
 redis = { workspace = true }
 deadpool-redis = { workspace = true }
 serde = { workspace = true }

@@ -1,3 +1,9 @@
+//! Core traits, types, and worker runtime for the kojin task queue.
+//!
+//! This crate provides the foundational abstractions: [`Task`], [`Broker`],
+//! [`Middleware`], [`Worker`], and supporting types. Most users should depend
+//! on the [`kojin`](https://crates.io/crates/kojin) facade crate instead.
+
 pub mod backoff;
 pub mod broker;
 pub mod codec;

@@ -186,7 +186,7 @@ impl Broker for RedisBroker {
 #[cfg(all(test, feature = "integration-tests"))]
 mod tests {
     use super::*;
-    use testcontainers::{runners::AsyncRunner, ImageExt};
+    use testcontainers::{ImageExt, runners::AsyncRunner};
     use testcontainers_modules::redis::Redis;
 
     async fn setup_broker() -> (RedisBroker, testcontainers::ContainerAsync<Redis>) {

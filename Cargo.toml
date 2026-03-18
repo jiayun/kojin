@@ -13,6 +13,13 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/jiayun/kojin"
 rust-version = "1.85"
+authors = ["Jiayun <jiayun@users.noreply.github.com>"]
+description = "Async distributed task queue for Rust"
+homepage = "https://github.com/jiayun/kojin"
+documentation = "https://docs.rs/kojin"
+readme = "README.md"
+keywords = ["task-queue", "async", "distributed", "background-jobs", "worker"]
+categories = ["asynchronous", "concurrency"]
 
 [workspace.dependencies]
 # Core

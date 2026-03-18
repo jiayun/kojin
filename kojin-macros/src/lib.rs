@@ -1,3 +1,9 @@
+//! Proc-macro support for the kojin task queue.
+//!
+//! Provides the `#[kojin::task]` attribute macro that generates a task struct
+//! and `Task` trait implementation from an async function. Most users should
+//! use this via the [`kojin`](https://crates.io/crates/kojin) facade crate.
+
 use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
