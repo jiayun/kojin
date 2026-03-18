@@ -111,12 +111,13 @@ async fn main() {
     println!("Chord workflow submitted: {}", handle.id);
 
     // --- Run worker to process all ---
+    // Share the same backend so the worker can see groups initialized by apply()
     println!("\n=== Starting worker ===");
     let worker = KojinBuilder::new(broker)
         .register_task::<Add>()
         .register_task::<Multiply>()
         .register_task::<Aggregate>()
-        .result_backend(MemoryResultBackend::new()) // worker needs its own backend for chain/chord
+        .result_backend_shared(backend)
         .middleware(TracingMiddleware)
         .concurrency(4)
         .queues(vec!["default".to_string()])

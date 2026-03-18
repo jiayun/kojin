@@ -48,6 +48,8 @@ pub struct Worker<B: Broker> {
     config: WorkerConfig,
     cancel: CancellationToken,
     result_backend: Option<Arc<dyn ResultBackend>>,
+    #[cfg(feature = "cron")]
+    cron_registry: Option<crate::cron::CronRegistry>,
 }
 
 impl<B: Broker> Worker<B> {
@@ -65,12 +67,21 @@ impl<B: Broker> Worker<B> {
             config,
             cancel: CancellationToken::new(),
             result_backend: None,
+            #[cfg(feature = "cron")]
+            cron_registry: None,
         }
     }
 
     /// Set the result backend.
     pub fn with_result_backend(mut self, backend: Arc<dyn ResultBackend>) -> Self {
         self.result_backend = Some(backend);
+        self
+    }
+
+    /// Set the cron registry for periodic task scheduling.
+    #[cfg(feature = "cron")]
+    pub fn with_cron_registry(mut self, registry: crate::cron::CronRegistry) -> Self {
+        self.cron_registry = Some(registry);
         self
     }
 
@@ -98,6 +109,27 @@ impl<B: Broker> Worker<B> {
     /// Run the worker loop until shutdown.
     pub async fn run(&self) {
         let semaphore = Arc::new(Semaphore::new(self.config.concurrency));
+
+        // Spawn cron scheduler if configured
+        #[cfg(feature = "cron")]
+        let _cron_handle = {
+            if let Some(ref cron_registry) = self.cron_registry {
+                let broker = self.broker.clone();
+                let registry = cron_registry.clone();
+                let cancel = self.cancel.clone();
+                Some(tokio::spawn(async move {
+                    crate::cron::scheduler_loop(
+                        broker,
+                        registry,
+                        cancel,
+                        std::time::Duration::from_secs(1),
+                    )
+                    .await;
+                }))
+            } else {
+                None
+            }
+        };
 
         tracing::info!(
             concurrency = self.config.concurrency,

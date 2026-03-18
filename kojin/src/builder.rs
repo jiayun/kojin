@@ -77,6 +77,15 @@ impl<B: Broker> KojinBuilder<B> {
         self
     }
 
+    /// Set a shared result backend (already wrapped in `Arc`).
+    ///
+    /// Use this when the same backend must be shared between
+    /// `Canvas::apply()` and the worker.
+    pub fn result_backend_shared(mut self, rb: Arc<dyn ResultBackend>) -> Self {
+        self.result_backend = Some(rb);
+        self
+    }
+
     /// Add a cron schedule entry.
     #[cfg(feature = "cron")]
     pub fn cron(
@@ -100,6 +109,10 @@ impl<B: Broker> KojinBuilder<B> {
         }
         if let Some(rb) = self.result_backend {
             worker = worker.with_result_backend(rb);
+        }
+        #[cfg(feature = "cron")]
+        if !self.cron_registry.is_empty() {
+            worker = worker.with_cron_registry(self.cron_registry);
         }
         worker
     }
