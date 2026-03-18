@@ -11,13 +11,22 @@ fn backend_err(e: impl std::fmt::Display) -> KojinError {
 }
 
 /// PostgreSQL-backed result storage.
+///
+/// Results are stored in the `kojin_results` table as JSONB with a configurable
+/// TTL (default 24 hours). Group state is tracked in `kojin_groups`.
+///
+/// **Important:** call [`migrate()`](Self::migrate) before first use to create
+/// the required tables and indexes.
 pub struct PostgresResultBackend {
     pool: PgPool,
     ttl: Duration,
 }
 
 impl PostgresResultBackend {
-    /// Create a new PostgreSQL result backend from a connection pool.
+    /// Create a new PostgreSQL result backend from an existing connection pool.
+    ///
+    /// The default result TTL is 24 hours; override with [`with_ttl`](Self::with_ttl).
+    /// You must call [`migrate()`](Self::migrate) before storing results.
     pub fn new(pool: PgPool) -> Self {
         Self {
             pool,
@@ -25,19 +34,26 @@ impl PostgresResultBackend {
         }
     }
 
-    /// Connect to PostgreSQL and create the backend.
+    /// Connect to PostgreSQL by URL and create the backend.
+    ///
+    /// This is a convenience wrapper around `PgPool::connect` + [`new`](Self::new).
     pub async fn connect(url: &str) -> TaskResult<Self> {
         let pool = PgPool::connect(url).await.map_err(backend_err)?;
         Ok(Self::new(pool))
     }
 
-    /// Set result TTL.
+    /// Override the result TTL (time-to-live).
+    ///
+    /// Expired results are not automatically deleted; they are filtered out at
+    /// read time. Run periodic cleanup queries against `kojin_results.expires_at`
+    /// if storage reclamation is needed. Defaults to 24 hours if not called.
     pub fn with_ttl(mut self, ttl: Duration) -> Self {
         self.ttl = ttl;
         self
     }
 
-    /// Run migrations to create the required tables.
+    /// Run migrations to create the required tables (`kojin_results`, `kojin_groups`)
+    /// and indexes. Safe to call multiple times — all statements use `IF NOT EXISTS`.
     pub async fn migrate(&self) -> TaskResult<()> {
         sqlx::query(
             r#"

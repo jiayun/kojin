@@ -26,6 +26,11 @@ return count
 "#;
 
 /// Redis-backed result storage.
+///
+/// Results are stored as JSON strings with a configurable TTL (default 24 hours).
+/// Group operations (`complete_group_member`) use a Lua script to atomically
+/// increment the completed count and push the result, preventing races when
+/// multiple workers finish group members concurrently.
 pub struct RedisResultBackend {
     pool: Pool,
     keys: KeyBuilder,
@@ -34,6 +39,10 @@ pub struct RedisResultBackend {
 
 impl RedisResultBackend {
     /// Create a new Redis result backend.
+    ///
+    /// Builds a `deadpool_redis` connection pool from the given config and
+    /// verifies connectivity by acquiring one connection. The default result
+    /// TTL is 24 hours; override with [`with_ttl`](Self::with_ttl).
     pub async fn new(config: RedisConfig) -> TaskResult<Self> {
         let cfg = deadpool_redis::Config::from_url(&config.url);
         let pool = cfg
@@ -54,7 +63,10 @@ impl RedisResultBackend {
         })
     }
 
-    /// Set result TTL.
+    /// Override the result TTL (time-to-live).
+    ///
+    /// Results older than this duration are automatically expired by Redis.
+    /// Defaults to 24 hours if not called.
     pub fn with_ttl(mut self, ttl: Duration) -> Self {
         self.ttl = ttl;
         self

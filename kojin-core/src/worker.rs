@@ -53,6 +53,9 @@ pub struct Worker<B: Broker> {
 }
 
 impl<B: Broker> Worker<B> {
+    /// Create a new worker with the given broker, task registry, shared context, and config.
+    ///
+    /// Prefer `KojinBuilder` (from the `kojin` facade crate) for ergonomic construction.
     pub fn new(
         broker: B,
         registry: TaskRegistry,

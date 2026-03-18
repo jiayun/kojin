@@ -84,6 +84,61 @@ async fn main() {
 }
 ```
 
+## Workflows
+
+Kojin supports Celery-style workflow primitives — `chain!`, `group!`, and `chord` — for composing tasks into DAGs. A result backend is required.
+
+```rust
+use kojin::{chain, group, chord, Signature, Canvas, MemoryResultBackend};
+
+// Signatures describe a task invocation (name, queue, payload)
+let fetch = Signature::new("fetch_url", "default", serde_json::json!({"url": "..."}));
+let parse = Signature::new("parse_html", "default", serde_json::json!(null));
+let store = Signature::new("store_result", "default", serde_json::json!(null));
+
+// Chain — sequential: fetch → parse → store
+let pipeline = chain![fetch.clone(), parse.clone(), store.clone()];
+
+// Group — parallel: fetch three URLs concurrently
+let batch = group![fetch.clone(), fetch.clone(), fetch.clone()];
+
+// Chord — parallel + callback: fetch all, then aggregate
+let aggregate = Signature::new("aggregate", "default", serde_json::json!(null));
+let workflow = chord(vec![fetch.clone(), fetch.clone()], aggregate);
+
+// Submit to the broker
+let handle = pipeline.apply(&broker, &backend).await?;
+```
+
+See `examples/workflow_demo.rs` for a complete runnable example.
+
+## Cron Scheduling
+
+With the `cron` feature flag, you can schedule periodic tasks using standard cron expressions:
+
+```toml
+[dependencies]
+kojin = { version = "0.2", features = ["cron"] }
+```
+
+```rust
+use kojin::{KojinBuilder, Signature, MemoryBroker};
+
+let worker = KojinBuilder::new(MemoryBroker::new())
+    .register_task::<CleanupTask>()
+    .result_backend(backend)
+    .cron(
+        "nightly-cleanup",
+        "0 3 * * *",  // every day at 03:00
+        Signature::new("cleanup", "default", serde_json::json!(null)),
+    )
+    .build();
+
+worker.run().await;
+```
+
+See `examples/cron_demo.rs` for a complete runnable example.
+
 ## Crate Architecture
 
 | Crate | Description |

@@ -7,7 +7,14 @@ use crate::error::{KojinError, TaskResult};
 use crate::result_backend::ResultBackend;
 use crate::task_id::TaskId;
 
-/// In-memory result backend for testing. Stores results in a HashMap behind a Mutex.
+/// In-memory result backend for development and testing.
+///
+/// Stores task results in a `HashMap` protected by a `std::sync::Mutex`.
+/// This is cheap to construct and requires no external services, but results
+/// are lost when the process exits and the `Mutex` may become a bottleneck
+/// under very high concurrency. For production use, prefer
+/// `RedisResultBackend` (from `kojin-redis`) or
+/// `PostgresResultBackend` (from `kojin-postgres`).
 #[derive(Debug, Default)]
 pub struct MemoryResultBackend {
     results: Mutex<HashMap<String, serde_json::Value>>,
@@ -23,6 +30,7 @@ struct GroupState {
 }
 
 impl MemoryResultBackend {
+    /// Create a new, empty in-memory result backend.
     pub fn new() -> Self {
         Self::default()
     }

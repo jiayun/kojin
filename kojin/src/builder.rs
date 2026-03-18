@@ -72,6 +72,10 @@ impl<B: Broker> KojinBuilder<B> {
     }
 
     /// Set the result backend for storing task results and workflow coordination.
+    ///
+    /// A result backend is **required** for workflows (`chain!`, `group!`, `chord`)
+    /// and for retrieving task return values. If you only need fire-and-forget
+    /// execution, this can be omitted.
     pub fn result_backend(mut self, rb: impl ResultBackend) -> Self {
         self.result_backend = Some(Arc::new(rb));
         self
@@ -87,6 +91,16 @@ impl<B: Broker> KojinBuilder<B> {
     }
 
     /// Add a cron schedule entry.
+    ///
+    /// The `expression` follows standard 5-field cron syntax (minute, hour,
+    /// day-of-month, month, day-of-week). The provided `signature` is
+    /// enqueued automatically each time the schedule fires.
+    ///
+    /// Requires the `cron` feature flag.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `expression` is not a valid cron expression.
     #[cfg(feature = "cron")]
     pub fn cron(
         mut self,
