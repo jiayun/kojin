@@ -11,6 +11,9 @@ Async distributed task queue for Rust — the equivalent of [Celery](https://doc
 - **Async-first** — built on Tokio, designed for `async`/`await` from the ground up
 - **`#[kojin::task]`** — proc-macro to define tasks from plain async functions
 - **Pluggable broker** — trait-based broker abstraction (Redis included, bring your own)
+- **Workflows** — chain, group, chord orchestration with `chain![]`, `group![]` macros
+- **Result backends** — Memory, Redis, PostgreSQL for storing task results and coordinating workflows
+- **Cron scheduling** — periodic task execution with standard cron expressions
 - **Middleware** — composable pre/post-execution hooks (tracing, metrics, custom)
 - **Graceful shutdown** — cooperative cancellation via `CancellationToken`
 - **Weighted queues** — prioritize work across multiple queues
@@ -22,7 +25,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-kojin = "0.1"
+kojin = "0.2"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 async-trait = "0.1"
@@ -86,9 +89,10 @@ async fn main() {
 | Crate | Description |
 |-------|-------------|
 | [`kojin`](https://crates.io/crates/kojin) | Facade crate — re-exports everything, provides `KojinBuilder` |
-| [`kojin-core`](https://crates.io/crates/kojin-core) | Core traits (`Task`, `Broker`, `Middleware`), worker runtime, types |
+| [`kojin-core`](https://crates.io/crates/kojin-core) | Core traits (`Task`, `Broker`, `Middleware`), worker runtime, workflows, types |
 | [`kojin-macros`](https://crates.io/crates/kojin-macros) | `#[kojin::task]` proc-macro |
-| [`kojin-redis`](https://crates.io/crates/kojin-redis) | Redis broker backend via `deadpool-redis` |
+| [`kojin-redis`](https://crates.io/crates/kojin-redis) | Redis broker + result backend via `deadpool-redis` |
+| [`kojin-postgres`](https://crates.io/crates/kojin-postgres) | PostgreSQL result backend via `sqlx` |
 
 ## License
 

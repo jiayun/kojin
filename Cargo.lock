@@ -1092,7 +1092,7 @@ dependencies = [
 
 [[package]]
 name = "kojin"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1108,7 +1108,7 @@ dependencies = [
 
 [[package]]
 name = "kojin-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1126,7 +1126,7 @@ dependencies = [
 
 [[package]]
 name = "kojin-macros"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "kojin-core",
@@ -1141,7 +1141,7 @@ dependencies = [
 
 [[package]]
 name = "kojin-postgres"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1157,7 +1157,7 @@ dependencies = [
 
 [[package]]
 name = "kojin-redis"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "chrono",
