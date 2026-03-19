@@ -97,9 +97,10 @@ impl Task for ProcessImage {
 ### Phase 4: Advanced
 
 1. **kojin-sqs**: AWS SQS broker
-2. **Task deduplication / idempotency**
-3. **Kubernetes-native patterns**
-4. **Cross-language interop** — language-agnostic JSON message schema over shared broker, enabling mixed Rust/Python (Celery, Dramatiq) worker pools; optionally Celery protocol v2 wire format for direct interop
+2. **AMQP priority queues** — declare queues with `x-max-priority`, set `priority` on `BasicProperties` when publishing, add priority field to task options; enables single-queue priority ordering on RabbitMQ without needing multiple weighted queues
+3. **Task deduplication / idempotency**
+4. **Kubernetes-native patterns**
+5. **Cross-language interop** — language-agnostic JSON message schema over shared broker, enabling mixed Rust/Python (Celery, Dramatiq) worker pools; optionally Celery protocol v2 wire format for direct interop
 
 ---
 
