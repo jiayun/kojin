@@ -43,11 +43,8 @@ pub async fn declare_topology(
     // The failure is a hard AMQP error (COMMAND_INVALID) that kills the
     // entire connection, so we probe on a disposable connection first.
     {
-        let probe = lapin::Connection::connect(
-            &config.url,
-            lapin::ConnectionProperties::default(),
-        )
-        .await;
+        let probe =
+            lapin::Connection::connect(&config.url, lapin::ConnectionProperties::default()).await;
         if let Ok(probe_conn) = probe {
             let probe_ch = probe_conn.create_channel().await.ok();
             if let Some(ch) = probe_ch {

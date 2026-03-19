@@ -53,9 +53,7 @@ async fn main() {
         // Middleware stack — order matters (outermost first)
         .middleware(TracingMiddleware)
         .middleware(metrics.clone())
-        .middleware(RateLimitMiddleware::per_second(
-            NonZeroU32::new(5).unwrap(),
-        ))
+        .middleware(RateLimitMiddleware::per_second(NonZeroU32::new(5).unwrap()))
         .concurrency(4)
         .queues(vec!["default".to_string()])
         .build();

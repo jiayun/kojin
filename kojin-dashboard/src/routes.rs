@@ -146,17 +146,9 @@ mod tests {
         dashboard_router(state)
     }
 
-    async fn get_json(
-        app: axum::Router,
-        uri: &str,
-    ) -> (axum::http::StatusCode, serde_json::Value) {
+    async fn get_json(app: axum::Router, uri: &str) -> (axum::http::StatusCode, serde_json::Value) {
         let resp = app
-            .oneshot(
-                Request::builder()
-                    .uri(uri)
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
             .await
             .unwrap();
         let status = resp.status();
@@ -216,10 +208,7 @@ mod tests {
         let msg = TaskMessage::new("failing_task", "default", serde_json::json!({}));
         broker.enqueue(msg).await.unwrap();
         let out = broker
-            .dequeue(
-                &["default".to_string()],
-                std::time::Duration::from_secs(1),
-            )
+            .dequeue(&["default".to_string()], std::time::Duration::from_secs(1))
             .await
             .unwrap()
             .unwrap();
@@ -239,10 +228,7 @@ mod tests {
         let metrics = MetricsMiddleware::new();
         let msg = TaskMessage::new("test", "default", serde_json::json!({}));
         metrics.before(&msg).await.unwrap();
-        metrics
-            .after(&msg, &serde_json::json!("ok"))
-            .await
-            .unwrap();
+        metrics.after(&msg, &serde_json::json!("ok")).await.unwrap();
 
         let state = DashboardState::new(broker).with_metrics(metrics);
         let (status, json) = get_json(app(state), "/api/metrics").await;
