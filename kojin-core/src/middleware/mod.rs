@@ -1,7 +1,15 @@
 mod metrics;
+#[cfg(feature = "otel")]
+pub mod otel;
+#[cfg(feature = "rate-limit")]
+pub mod rate_limit;
 mod tracing_mw;
 
 pub use metrics::MetricsMiddleware;
+#[cfg(feature = "otel")]
+pub use otel::OtelMiddleware;
+#[cfg(feature = "rate-limit")]
+pub use rate_limit::RateLimitMiddleware;
 pub use tracing_mw::TracingMiddleware;
 
 use async_trait::async_trait;

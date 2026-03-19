@@ -544,7 +544,7 @@ mod tests {
         cancel.cancel();
         handle.await.unwrap();
 
-        assert_eq!(broker.dlq_len("default").await, 1);
+        assert_eq!(broker.dlq_len("default").await.unwrap(), 1);
     }
 
     #[tokio::test]

@@ -47,5 +47,13 @@ pub use kojin_redis::{RedisBroker, RedisConfig, RedisResultBackend};
 #[cfg(feature = "postgres")]
 pub use kojin_postgres::PostgresResultBackend;
 
+// Re-export AMQP broker when feature is enabled
+#[cfg(feature = "amqp")]
+pub use kojin_amqp::{AmqpBroker, AmqpConfig};
+
+// Re-export dashboard when feature is enabled
+#[cfg(feature = "dashboard")]
+pub use kojin_dashboard::{DashboardConfig, DashboardState, dashboard_router, spawn_dashboard};
+
 mod builder;
 pub use builder::KojinBuilder;

@@ -32,12 +32,6 @@ impl MemoryBroker {
             }),
         }
     }
-
-    /// Get the dead-letter queue contents for testing.
-    pub async fn dlq_len(&self, queue: &str) -> usize {
-        let dlq = self.inner.dlq.lock().await;
-        dlq.get(queue).map_or(0, |q| q.len())
-    }
 }
 
 impl Default for MemoryBroker {
@@ -128,6 +122,29 @@ impl Broker for MemoryBroker {
     async fn queue_len(&self, queue: &str) -> TaskResult<usize> {
         let queues = self.inner.queues.lock().await;
         Ok(queues.get(queue).map_or(0, |q| q.len()))
+    }
+
+    async fn dlq_len(&self, queue: &str) -> TaskResult<usize> {
+        let dlq = self.inner.dlq.lock().await;
+        Ok(dlq.get(queue).map_or(0, |q| q.len()))
+    }
+
+    async fn list_queues(&self) -> TaskResult<Vec<String>> {
+        let queues = self.inner.queues.lock().await;
+        Ok(queues.keys().cloned().collect())
+    }
+
+    async fn dlq_messages(
+        &self,
+        queue: &str,
+        offset: usize,
+        limit: usize,
+    ) -> TaskResult<Vec<TaskMessage>> {
+        let dlq = self.inner.dlq.lock().await;
+        Ok(dlq
+            .get(queue)
+            .map(|q| q.iter().skip(offset).take(limit).cloned().collect())
+            .unwrap_or_default())
     }
 }
 
@@ -223,7 +240,7 @@ mod tests {
         broker.dead_letter(out).await.unwrap();
 
         assert_eq!(broker.queue_len("default").await.unwrap(), 0);
-        assert_eq!(broker.dlq_len("default").await, 1);
+        assert_eq!(broker.dlq_len("default").await.unwrap(), 1);
     }
 
     #[tokio::test]

@@ -37,6 +37,10 @@ pub use error::{KojinError, TaskResult};
 pub use memory_broker::MemoryBroker;
 pub use memory_result_backend::MemoryResultBackend;
 pub use message::TaskMessage;
+#[cfg(feature = "otel")]
+pub use middleware::OtelMiddleware;
+#[cfg(feature = "rate-limit")]
+pub use middleware::RateLimitMiddleware;
 pub use middleware::{MetricsMiddleware, Middleware, TracingMiddleware};
 pub use queue_weight::{QueueWeight, WeightedQueue};
 pub use registry::TaskRegistry;

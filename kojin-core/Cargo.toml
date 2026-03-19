@@ -16,6 +16,8 @@ categories.workspace = true
 [features]
 default = []
 cron = ["dep:cron"]
+rate-limit = ["dep:governor"]
+otel = ["dep:opentelemetry"]
 
 [dependencies]
 serde = { workspace = true }
@@ -28,6 +30,8 @@ tracing = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
 cron = { version = "0.15", optional = true }
+governor = { version = "0.10", optional = true }
+opentelemetry = { version = "0.31", optional = true }
 
 [dev-dependencies]
 tracing-test = "0.2"

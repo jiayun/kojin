@@ -181,6 +181,47 @@ impl Broker for RedisBroker {
         let len: usize = conn.llen(&queue_key).await.map_err(broker_err)?;
         Ok(len)
     }
+
+    async fn dlq_len(&self, queue: &str) -> TaskResult<usize> {
+        let mut conn = self.conn().await?;
+        let dlq_key = self.keys.dlq(queue);
+        let len: usize = conn.llen(&dlq_key).await.map_err(broker_err)?;
+        Ok(len)
+    }
+
+    async fn list_queues(&self) -> TaskResult<Vec<String>> {
+        let mut conn = self.conn().await?;
+        let pattern = format!("{}:queue:*", self.keys.prefix());
+        let keys: Vec<String> = redis::cmd("KEYS")
+            .arg(&pattern)
+            .query_async(&mut *conn)
+            .await
+            .map_err(broker_err)?;
+        let prefix = format!("{}:queue:", self.keys.prefix());
+        Ok(keys
+            .into_iter()
+            .filter_map(|k| k.strip_prefix(&prefix).map(String::from))
+            .collect())
+    }
+
+    async fn dlq_messages(
+        &self,
+        queue: &str,
+        offset: usize,
+        limit: usize,
+    ) -> TaskResult<Vec<TaskMessage>> {
+        let mut conn = self.conn().await?;
+        let dlq_key = self.keys.dlq(queue);
+        let end = offset + limit - 1;
+        let items: Vec<String> = conn
+            .lrange(&dlq_key, offset as isize, end as isize)
+            .await
+            .map_err(broker_err)?;
+        items
+            .into_iter()
+            .map(|s| serde_json::from_str(&s).map_err(KojinError::from))
+            .collect()
+    }
 }
 
 #[cfg(all(test, feature = "integration-tests"))]

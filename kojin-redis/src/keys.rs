@@ -11,6 +11,11 @@ impl KeyBuilder {
         }
     }
 
+    /// Get the key prefix.
+    pub fn prefix(&self) -> &str {
+        &self.prefix
+    }
+
     /// Queue key: `{prefix}:queue:{name}`
     pub fn queue(&self, name: &str) -> String {
         format!("{}:queue:{}", self.prefix, name)

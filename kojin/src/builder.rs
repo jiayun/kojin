@@ -18,6 +18,8 @@ pub struct KojinBuilder<B: Broker> {
     result_backend: Option<Arc<dyn ResultBackend>>,
     #[cfg(feature = "cron")]
     cron_registry: kojin_core::cron::CronRegistry,
+    #[cfg(feature = "dashboard")]
+    dashboard_port: Option<u16>,
 }
 
 impl<B: Broker> KojinBuilder<B> {
@@ -32,6 +34,8 @@ impl<B: Broker> KojinBuilder<B> {
             result_backend: None,
             #[cfg(feature = "cron")]
             cron_registry: kojin_core::cron::CronRegistry::new(),
+            #[cfg(feature = "dashboard")]
+            dashboard_port: None,
         }
     }
 
@@ -112,6 +116,16 @@ impl<B: Broker> KojinBuilder<B> {
             Ok(entry) => self.cron_registry.add(entry),
             Err(e) => panic!("Invalid cron expression: {e}"),
         }
+        self
+    }
+
+    /// Enable the dashboard API on the given port.
+    ///
+    /// The dashboard runs as a background Tokio task alongside the worker.
+    /// Requires the `dashboard` feature flag.
+    #[cfg(feature = "dashboard")]
+    pub fn dashboard(mut self, port: u16) -> Self {
+        self.dashboard_port = Some(port);
         self
     }
 

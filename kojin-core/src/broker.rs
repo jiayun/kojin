@@ -36,4 +36,26 @@ pub trait Broker: Send + Sync + 'static {
 
     /// Get the length of a queue.
     async fn queue_len(&self, queue: &str) -> TaskResult<usize>;
+
+    /// Get the number of messages in the dead-letter queue for a given queue.
+    async fn dlq_len(&self, queue: &str) -> TaskResult<usize> {
+        let _ = queue;
+        Ok(0)
+    }
+
+    /// List all known queue names.
+    async fn list_queues(&self) -> TaskResult<Vec<String>> {
+        Ok(Vec::new())
+    }
+
+    /// Retrieve messages from the dead-letter queue with pagination.
+    async fn dlq_messages(
+        &self,
+        queue: &str,
+        offset: usize,
+        limit: usize,
+    ) -> TaskResult<Vec<TaskMessage>> {
+        let _ = (queue, offset, limit);
+        Ok(Vec::new())
+    }
 }
