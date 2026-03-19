@@ -27,7 +27,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-kojin = "0.2"
+kojin = "0.3"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 async-trait = "0.1"
@@ -120,7 +120,7 @@ With the `cron` feature flag, you can schedule periodic tasks using standard cro
 
 ```toml
 [dependencies]
-kojin = { version = "0.2", features = ["cron"] }
+kojin = { version = "0.3", features = ["cron"] }
 ```
 
 ```rust
