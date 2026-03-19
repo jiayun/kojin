@@ -124,3 +124,177 @@ pub async fn get_task_result(
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use axum::body::Body;
+    use axum::http::Request;
+    use http_body_util::BodyExt;
+    use tower::ServiceExt;
+
+    use kojin_core::broker::Broker;
+    use kojin_core::message::TaskMessage;
+    use kojin_core::middleware::{MetricsMiddleware, Middleware};
+    use kojin_core::result_backend::ResultBackend;
+    use kojin_core::{MemoryBroker, MemoryResultBackend};
+
+    use crate::{DashboardState, dashboard_router};
+
+    fn app(state: DashboardState) -> axum::Router {
+        dashboard_router(state)
+    }
+
+    async fn get_json(
+        app: axum::Router,
+        uri: &str,
+    ) -> (axum::http::StatusCode, serde_json::Value) {
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri(uri)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let status = resp.status();
+        let body = resp.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value =
+            serde_json::from_slice(&body).unwrap_or(serde_json::Value::Null);
+        (status, json)
+    }
+
+    #[tokio::test]
+    async fn list_queues_empty() {
+        let broker = Arc::new(MemoryBroker::new());
+        let state = DashboardState::new(broker);
+        let (status, json) = get_json(app(state), "/api/queues").await;
+        assert_eq!(status, 200);
+        assert_eq!(json, serde_json::json!([]));
+    }
+
+    #[tokio::test]
+    async fn list_queues_with_data() {
+        let broker = Arc::new(MemoryBroker::new());
+        broker
+            .enqueue(TaskMessage::new("t", "default", serde_json::json!(1)))
+            .await
+            .unwrap();
+        let state = DashboardState::new(broker);
+        let (status, json) = get_json(app(state), "/api/queues").await;
+        assert_eq!(status, 200);
+        let arr = json.as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0]["name"], "default");
+        assert_eq!(arr[0]["length"], 1);
+    }
+
+    #[tokio::test]
+    async fn get_queue_detail() {
+        let broker = Arc::new(MemoryBroker::new());
+        broker
+            .enqueue(TaskMessage::new("t", "default", serde_json::json!(1)))
+            .await
+            .unwrap();
+        broker
+            .enqueue(TaskMessage::new("t", "default", serde_json::json!(2)))
+            .await
+            .unwrap();
+        let state = DashboardState::new(broker);
+        let (status, json) = get_json(app(state), "/api/queues/default").await;
+        assert_eq!(status, 200);
+        assert_eq!(json["name"], "default");
+        assert_eq!(json["length"], 2);
+        assert_eq!(json["dlq_length"], 0);
+    }
+
+    #[tokio::test]
+    async fn get_dlq_messages() {
+        let broker = Arc::new(MemoryBroker::new());
+        let msg = TaskMessage::new("failing_task", "default", serde_json::json!({}));
+        broker.enqueue(msg).await.unwrap();
+        let out = broker
+            .dequeue(
+                &["default".to_string()],
+                std::time::Duration::from_secs(1),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        broker.dead_letter(out).await.unwrap();
+
+        let state = DashboardState::new(broker);
+        let (status, json) = get_json(app(state), "/api/queues/default/dlq").await;
+        assert_eq!(status, 200);
+        let arr = json.as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0]["task_name"], "failing_task");
+    }
+
+    #[tokio::test]
+    async fn get_metrics_with_middleware() {
+        let broker = Arc::new(MemoryBroker::new());
+        let metrics = MetricsMiddleware::new();
+        let msg = TaskMessage::new("test", "default", serde_json::json!({}));
+        metrics.before(&msg).await.unwrap();
+        metrics
+            .after(&msg, &serde_json::json!("ok"))
+            .await
+            .unwrap();
+
+        let state = DashboardState::new(broker).with_metrics(metrics);
+        let (status, json) = get_json(app(state), "/api/metrics").await;
+        assert_eq!(status, 200);
+        assert_eq!(json["tasks_started"], 1);
+        assert_eq!(json["tasks_succeeded"], 1);
+        assert_eq!(json["tasks_failed"], 0);
+    }
+
+    #[tokio::test]
+    async fn get_metrics_without_middleware() {
+        let broker = Arc::new(MemoryBroker::new());
+        let state = DashboardState::new(broker);
+        let (status, _) = get_json(app(state), "/api/metrics").await;
+        assert_eq!(status, 404);
+    }
+
+    #[tokio::test]
+    async fn get_task_result_found() {
+        let broker = Arc::new(MemoryBroker::new());
+        let backend = Arc::new(MemoryResultBackend::new());
+        let task_id = kojin_core::TaskId::new();
+        backend
+            .store(&task_id, &serde_json::json!({"answer": 42}))
+            .await
+            .unwrap();
+
+        let state = DashboardState::new(broker).with_result_backend(backend);
+        let uri = format!("/api/tasks/{}", task_id.as_uuid());
+        let (status, json) = get_json(app(state), &uri).await;
+        assert_eq!(status, 200);
+        assert_eq!(json["answer"], 42);
+    }
+
+    #[tokio::test]
+    async fn get_task_result_not_found() {
+        let broker = Arc::new(MemoryBroker::new());
+        let backend = Arc::new(MemoryResultBackend::new());
+        let state = DashboardState::new(broker).with_result_backend(backend);
+        let random_id = uuid::Uuid::now_v7();
+        let uri = format!("/api/tasks/{random_id}");
+        let (status, _) = get_json(app(state), &uri).await;
+        assert_eq!(status, 404);
+    }
+
+    #[tokio::test]
+    async fn get_task_result_no_backend() {
+        let broker = Arc::new(MemoryBroker::new());
+        let state = DashboardState::new(broker); // no result_backend
+        let random_id = uuid::Uuid::now_v7();
+        let uri = format!("/api/tasks/{random_id}");
+        let (status, _) = get_json(app(state), &uri).await;
+        assert_eq!(status, 404);
+    }
+}

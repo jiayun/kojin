@@ -258,4 +258,69 @@ mod tests {
             .unwrap();
         assert_eq!(broker.queue_len("default").await.unwrap(), 2);
     }
+
+    #[tokio::test]
+    async fn list_queues_returns_known_queues() {
+        let broker = MemoryBroker::new();
+        broker
+            .enqueue(TaskMessage::new("t", "emails", serde_json::json!(1)))
+            .await
+            .unwrap();
+        broker
+            .enqueue(TaskMessage::new("t", "notifications", serde_json::json!(2)))
+            .await
+            .unwrap();
+
+        let mut queues = broker.list_queues().await.unwrap();
+        queues.sort();
+        assert_eq!(queues, vec!["emails", "notifications"]);
+    }
+
+    #[tokio::test]
+    async fn dlq_len_via_trait() {
+        let broker = MemoryBroker::new();
+        let msg = TaskMessage::new("task1", "default", serde_json::json!(1));
+        broker.enqueue(msg).await.unwrap();
+
+        let queues = vec!["default".to_string()];
+        let out = broker
+            .dequeue(&queues, Duration::from_secs(1))
+            .await
+            .unwrap()
+            .unwrap();
+        broker.dead_letter(out).await.unwrap();
+
+        assert_eq!(broker.dlq_len("default").await.unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn dlq_messages_pagination() {
+        let broker = MemoryBroker::new();
+        let queues = vec!["default".to_string()];
+
+        // Dead-letter 5 messages
+        for i in 0..5 {
+            let msg = TaskMessage::new("task", "default", serde_json::json!(i));
+            broker.enqueue(msg).await.unwrap();
+            let out = broker
+                .dequeue(&queues, Duration::from_secs(1))
+                .await
+                .unwrap()
+                .unwrap();
+            broker.dead_letter(out).await.unwrap();
+        }
+
+        let page1 = broker.dlq_messages("default", 0, 3).await.unwrap();
+        assert_eq!(page1.len(), 3);
+
+        let page2 = broker.dlq_messages("default", 3, 3).await.unwrap();
+        assert_eq!(page2.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn dlq_messages_empty() {
+        let broker = MemoryBroker::new();
+        let messages = broker.dlq_messages("nonexistent", 0, 10).await.unwrap();
+        assert!(messages.is_empty());
+    }
 }

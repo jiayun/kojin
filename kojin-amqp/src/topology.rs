@@ -1,6 +1,6 @@
 use lapin::options::*;
 use lapin::types::{AMQPValue, FieldTable, ShortString};
-use lapin::{Channel, ExchangeKind};
+use lapin::{Channel, Connection, ExchangeKind};
 use tracing::debug;
 
 use crate::config::AmqpConfig;
@@ -10,6 +10,7 @@ pub async fn declare_topology(
     channel: &Channel,
     config: &AmqpConfig,
     queues: &[String],
+    connection: &Connection,
 ) -> lapin::Result<()> {
     let opts = ExchangeDeclareOptions {
         durable: true,
@@ -38,32 +39,46 @@ pub async fn declare_topology(
         .await?;
     debug!(exchange = %config.dlx_exchange, "declared DLX exchange");
 
-    // Delayed message exchange (x-delayed-message plugin)
-    let mut delayed_args = FieldTable::default();
-    delayed_args.insert(
-        "x-delayed-type".into(),
-        AMQPValue::LongString("direct".into()),
-    );
-    channel
-        .exchange_declare(
-            ShortString::from(config.delayed_exchange.as_str()),
-            ExchangeKind::Custom("x-delayed-message".into()),
-            opts,
-            delayed_args,
+    // Delayed message exchange (x-delayed-message plugin).
+    // The failure is a hard AMQP error (COMMAND_INVALID) that kills the
+    // entire connection, so we probe on a disposable connection first.
+    {
+        let probe = lapin::Connection::connect(
+            &config.url,
+            lapin::ConnectionProperties::default(),
         )
-        .await
-        .or_else(|e| -> lapin::Result<()> {
-            tracing::warn!(
-                error = %e,
-                "failed to declare delayed exchange — scheduled tasks require the \
-                 rabbitmq-delayed-message-exchange plugin"
-            );
-            Ok(())
-        })?;
+        .await;
+        if let Ok(probe_conn) = probe {
+            let probe_ch = probe_conn.create_channel().await.ok();
+            if let Some(ch) = probe_ch {
+                let mut delayed_args = FieldTable::default();
+                delayed_args.insert(
+                    "x-delayed-type".into(),
+                    AMQPValue::LongString("direct".into()),
+                );
+                if let Err(e) = ch
+                    .exchange_declare(
+                        ShortString::from(config.delayed_exchange.as_str()),
+                        ExchangeKind::Custom("x-delayed-message".into()),
+                        opts,
+                        delayed_args,
+                    )
+                    .await
+                {
+                    tracing::warn!(
+                        error = %e,
+                        "failed to declare delayed exchange — scheduled tasks require the \
+                         rabbitmq-delayed-message-exchange plugin"
+                    );
+                }
+            }
+            // probe connection is dropped here
+        }
+    }
 
     // Declare queues and DLQ counterparts
     for name in queues {
-        declare_queue_pair(channel, config, name).await?;
+        declare_queue_pair(channel, config, name, connection).await?;
     }
 
     Ok(())
@@ -74,6 +89,7 @@ pub async fn declare_queue_pair(
     channel: &Channel,
     config: &AmqpConfig,
     name: &str,
+    connection: &Connection,
 ) -> lapin::Result<()> {
     let queue_name: ShortString = format!("kojin.queue.{name}").into();
     let dlq_name: ShortString = format!("kojin.dlq.{name}").into();
@@ -124,8 +140,10 @@ pub async fn declare_queue_pair(
         )
         .await?;
 
-    // Bind to delayed exchange too
-    channel
+    // Bind to delayed exchange too — use a disposable channel because binding
+    // to a non-existent exchange poisons the AMQP channel.
+    let delayed_ch = connection.create_channel().await?;
+    let _ = delayed_ch
         .queue_bind(
             queue_name.clone(),
             ShortString::from(config.delayed_exchange.as_str()),
@@ -133,8 +151,7 @@ pub async fn declare_queue_pair(
             QueueBindOptions::default(),
             FieldTable::default(),
         )
-        .await
-        .ok(); // ignore if delayed exchange doesn't exist
+        .await; // ignore if delayed exchange doesn't exist
 
     debug!(queue = %queue_name, dlq = %dlq_name, "declared queue pair");
     Ok(())

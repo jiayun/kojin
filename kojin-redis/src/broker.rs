@@ -313,6 +313,67 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn dlq_len_via_trait() {
+        let (broker, _container) = setup_broker().await;
+
+        let msg = TaskMessage::new("test_task", "default", serde_json::json!({}));
+        broker.enqueue(msg).await.unwrap();
+
+        let queues = vec!["default".to_string()];
+        let dequeued = broker
+            .dequeue(&queues, Duration::from_secs(1))
+            .await
+            .unwrap()
+            .unwrap();
+
+        broker.dead_letter(dequeued).await.unwrap();
+        assert_eq!(broker.dlq_len("default").await.unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn list_queues_returns_known() {
+        let (broker, _container) = setup_broker().await;
+
+        broker
+            .enqueue(TaskMessage::new("t", "emails", serde_json::json!(1)))
+            .await
+            .unwrap();
+        broker
+            .enqueue(TaskMessage::new("t", "default", serde_json::json!(2)))
+            .await
+            .unwrap();
+
+        let mut queues = broker.list_queues().await.unwrap();
+        queues.sort();
+        assert!(queues.contains(&"emails".to_string()));
+        assert!(queues.contains(&"default".to_string()));
+    }
+
+    #[tokio::test]
+    async fn dlq_messages_returns_content() {
+        let (broker, _container) = setup_broker().await;
+        let queues = vec!["default".to_string()];
+
+        // Dead-letter 2 messages
+        for name in ["task_a", "task_b"] {
+            let msg = TaskMessage::new(name, "default", serde_json::json!({}));
+            broker.enqueue(msg).await.unwrap();
+            let dequeued = broker
+                .dequeue(&queues, Duration::from_secs(1))
+                .await
+                .unwrap()
+                .unwrap();
+            broker.dead_letter(dequeued).await.unwrap();
+        }
+
+        let messages = broker.dlq_messages("default", 0, 10).await.unwrap();
+        assert_eq!(messages.len(), 2);
+        let names: Vec<&str> = messages.iter().map(|m| m.task_name.as_str()).collect();
+        assert!(names.contains(&"task_a"));
+        assert!(names.contains(&"task_b"));
+    }
+
+    #[tokio::test]
     async fn schedule_and_poll() {
         let (broker, _container) = setup_broker().await;
 

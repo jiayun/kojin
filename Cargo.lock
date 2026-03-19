@@ -1770,6 +1770,8 @@ dependencies = [
  "lapin",
  "serde",
  "serde_json",
+ "testcontainers",
+ "testcontainers-modules",
  "tokio",
  "tokio-util",
  "tracing",

@@ -136,4 +136,21 @@ mod tests {
             "task_b should not be blocked by task_a"
         );
     }
+
+    #[tokio::test]
+    async fn rate_limit_with_quota_constructors() {
+        use governor::Quota;
+
+        // global with explicit Quota
+        let _global = RateLimitMiddleware::global(Quota::per_second(NonZeroU32::new(100).unwrap()));
+
+        // per_task with explicit Quota
+        let _per_task =
+            RateLimitMiddleware::per_task(Quota::per_minute(NonZeroU32::new(60).unwrap()));
+
+        // Ensure they can process a message without panic
+        let msg = TaskMessage::new("test", "default", serde_json::json!({}));
+        _global.before(&msg).await.unwrap();
+        _per_task.before(&msg).await.unwrap();
+    }
 }
