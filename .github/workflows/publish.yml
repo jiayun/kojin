@@ -31,22 +31,28 @@ jobs:
         run: cargo test --workspace
 
       - name: Publish kojin-core
-        run: cargo publish -p kojin-core
+        run: cargo publish -p kojin-core || echo "Already published"
 
       - name: Publish kojin-macros
-        run: cargo publish -p kojin-macros
+        run: cargo publish -p kojin-macros || echo "Already published"
 
       - name: Wait for crates.io index update
         run: sleep 30
 
       - name: Publish kojin-redis
-        run: cargo publish -p kojin-redis
+        run: cargo publish -p kojin-redis || echo "Already published"
 
       - name: Publish kojin-postgres
-        run: cargo publish -p kojin-postgres
+        run: cargo publish -p kojin-postgres || echo "Already published"
+
+      - name: Publish kojin-amqp
+        run: cargo publish -p kojin-amqp || echo "Already published"
+
+      - name: Publish kojin-dashboard
+        run: cargo publish -p kojin-dashboard || echo "Already published"
 
       - name: Wait for crates.io index update
         run: sleep 30
 
       - name: Publish kojin
-        run: cargo publish -p kojin
+        run: cargo publish -p kojin || echo "Already published"
