@@ -14,7 +14,9 @@ Async distributed task queue for Rust — the equivalent of [Celery](https://doc
 - **Workflows** — chain, group, chord orchestration with `chain![]`, `group![]` macros
 - **Result backends** — Memory, Redis, PostgreSQL for storing task results and coordinating workflows
 - **Cron scheduling** — periodic task execution with standard cron expressions
-- **Middleware** — composable pre/post-execution hooks (tracing, metrics, custom)
+- **Middleware** — composable pre/post-execution hooks (tracing, metrics, rate limiting, OpenTelemetry)
+- **AMQP broker** — RabbitMQ support with automatic topology, dead-letter queues, and delayed scheduling
+- **Dashboard** — built-in JSON API for monitoring queues, metrics, and task results
 - **Graceful shutdown** — cooperative cancellation via `CancellationToken`
 - **Weighted queues** — prioritize work across multiple queues
 - **Configurable retries** — per-task retry limits with backoff strategies
@@ -139,6 +141,83 @@ worker.run().await;
 
 See `examples/cron_demo.rs` for a complete runnable example.
 
+## Middleware & Observability
+
+Kojin ships with composable middleware for tracing, metrics, rate limiting, and OpenTelemetry:
+
+```rust
+use std::num::NonZeroU32;
+use kojin::{KojinBuilder, MemoryBroker, MetricsMiddleware, TracingMiddleware, RateLimitMiddleware};
+
+let metrics = MetricsMiddleware::new();
+
+let worker = KojinBuilder::new(MemoryBroker::new())
+    .register_task::<MyTask>()
+    .middleware(TracingMiddleware)                                 // structured logs
+    .middleware(metrics.clone())                                   // in-process counters
+    .middleware(RateLimitMiddleware::per_second(NonZeroU32::new(100).unwrap())) // token-bucket
+    .build();
+
+// After processing, query counters:
+println!("succeeded: {}", metrics.tasks_succeeded());
+```
+
+`OtelMiddleware` (behind the `otel` feature) emits `kojin.task.started`, `kojin.task.succeeded`, `kojin.task.failed` counters and a `kojin.task.duration` histogram to any configured OpenTelemetry `MeterProvider`.
+
+See `examples/observability.rs` for a complete runnable example.
+
+## AMQP Broker (RabbitMQ)
+
+With the `amqp` feature flag, you can use RabbitMQ as a production broker:
+
+```toml
+[dependencies]
+kojin = { version = "0.3", features = ["amqp"] }
+```
+
+```rust
+use kojin::{AmqpBroker, AmqpConfig, KojinBuilder};
+
+let config = AmqpConfig::new("amqp://guest:guest@localhost:5672/%2f");
+let broker = AmqpBroker::new(config, &["default".into()]).await?;
+
+let worker = KojinBuilder::new(broker)
+    .register_task::<MyTask>()
+    .build();
+```
+
+`AmqpBroker` automatically declares the full topology: a direct exchange (`kojin.direct`), per-queue dead-letter queues (`kojin.dlq.*`), and a delayed-message exchange (`kojin.delayed`) for scheduled tasks.
+
+See `examples/amqp.rs` for a complete runnable example.
+
+## Dashboard
+
+With the `dashboard` feature flag, you get a built-in JSON API for monitoring:
+
+```toml
+[dependencies]
+kojin = { version = "0.3", features = ["dashboard"] }
+```
+
+```rust
+use std::sync::Arc;
+use kojin::{DashboardState, MetricsMiddleware, MemoryBroker, spawn_dashboard};
+
+let broker = MemoryBroker::new();
+let metrics = MetricsMiddleware::new();
+
+let state = DashboardState::new(Arc::new(broker.clone()))
+    .with_metrics(metrics.clone());
+
+let _handle = spawn_dashboard(state, 9090);
+// GET /api/queues        — list all queues with lengths
+// GET /api/queues/{name} — single queue detail
+// GET /api/metrics       — tasks started/succeeded/failed
+// GET /api/tasks/{id}    — task result (requires result backend)
+```
+
+See `examples/dashboard.rs` for a complete runnable example.
+
 ## Crate Architecture
 
 | Crate | Description |
@@ -148,6 +227,8 @@ See `examples/cron_demo.rs` for a complete runnable example.
 | [`kojin-macros`](https://crates.io/crates/kojin-macros) | `#[kojin::task]` proc-macro |
 | [`kojin-redis`](https://crates.io/crates/kojin-redis) | Redis broker + result backend via `deadpool-redis` |
 | [`kojin-postgres`](https://crates.io/crates/kojin-postgres) | PostgreSQL result backend via `sqlx` |
+| [`kojin-amqp`](https://crates.io/crates/kojin-amqp) | RabbitMQ broker via `lapin` — topology, DLQ, delayed messages |
+| [`kojin-dashboard`](https://crates.io/crates/kojin-dashboard) | JSON API monitoring dashboard via `axum` |
 
 ## License
 

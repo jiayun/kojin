@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-03-19
+
+### Added
+
+- New crate: **`kojin-amqp`** — RabbitMQ broker via `lapin` with automatic topology declaration (direct exchange, dead-letter queues, delayed-message exchange)
+- New crate: **`kojin-dashboard`** — JSON API monitoring dashboard via `axum` with endpoints for queues, metrics, DLQ inspection, and task results
+- `OtelMiddleware` — OpenTelemetry integration emitting `kojin.task.*` counters and duration histogram (behind `otel` feature)
+- `RateLimitMiddleware` — token-bucket rate limiting via `governor`, supports global and per-task limits (behind `rate-limit` feature)
+- `AmqpConfig` builder with configurable exchange names and prefetch count
+- `DashboardState` builder with optional result backend and metrics
+- `spawn_dashboard()` for running the dashboard as a background Tokio task
+- `amqp`, `dashboard`, `otel`, and `rate-limit` feature flags
+- Examples: `observability`, `dashboard`, `amqp`
+
+### Fixed
+
+- AMQP topology: use `assert` instead of `declare` for delayed exchange to avoid hard errors when the `rabbitmq_delayed_message_exchange` plugin is not installed
+
 ## [0.2.0] - 2026-03-18
 
 ### Added
@@ -49,5 +67,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `JsonCodec` — default serde-based message serialization
 - Graceful shutdown via `CancellationToken`
 
+[0.3.0]: https://github.com/jiayun/kojin/releases/tag/v0.3.0
 [0.2.0]: https://github.com/jiayun/kojin/releases/tag/v0.2.0
 [0.1.0]: https://github.com/jiayun/kojin/releases/tag/v0.1.0

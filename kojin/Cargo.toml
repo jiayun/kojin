@@ -59,3 +59,15 @@ chrono = { workspace = true }
 [[example]]
 name = "cron"
 required-features = ["cron"]
+
+[[example]]
+name = "observability"
+required-features = ["rate-limit"]
+
+[[example]]
+name = "dashboard"
+required-features = ["dashboard"]
+
+[[example]]
+name = "amqp"
+required-features = ["amqp"]
