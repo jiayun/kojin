@@ -62,6 +62,7 @@ optional = true
 tokio = { workspace = true }
 tracing-subscriber = "0.3"
 chrono = { workspace = true }
+aws-config = "1"
 
 [[example]]
 name = "cron"
@@ -76,5 +77,15 @@ name = "dashboard"
 required-features = ["dashboard"]
 
 [[example]]
+name = "basic"
+
+[[example]]
+name = "workflows"
+
+[[example]]
 name = "amqp"
 required-features = ["amqp"]
+
+[[example]]
+name = "sqs"
+required-features = ["sqs"]

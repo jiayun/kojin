@@ -2243,6 +2243,7 @@ name = "kojin"
 version = "0.3.0"
 dependencies = [
  "async-trait",
+ "aws-config",
  "chrono",
  "kojin-amqp",
  "kojin-core",

@@ -16,6 +16,9 @@ Async distributed task queue for Rust — the equivalent of [Celery](https://doc
 - **Cron scheduling** — periodic task execution with standard cron expressions
 - **Middleware** — composable pre/post-execution hooks (tracing, metrics, rate limiting, OpenTelemetry)
 - **AMQP broker** — RabbitMQ support with automatic topology, dead-letter queues, and delayed scheduling
+- **SQS broker** — Amazon SQS support with standard and FIFO queues, long polling, and delayed scheduling
+- **Deduplication** — content-based or key-based dedup middleware with configurable TTL
+- **Priority queues** — per-message priority (0–9) via AMQP broker
 - **Dashboard** — built-in JSON API for monitoring queues, metrics, and task results
 - **Graceful shutdown** — cooperative cancellation via `CancellationToken`
 - **Weighted queues** — prioritize work across multiple queues
@@ -112,7 +115,7 @@ let workflow = chord(vec![fetch.clone(), fetch.clone()], aggregate);
 let handle = pipeline.apply(&broker, &backend).await?;
 ```
 
-See `examples/workflow_demo.rs` for a complete runnable example.
+See `kojin/examples/workflows.rs` for a complete runnable example.
 
 ## Cron Scheduling
 
@@ -139,7 +142,7 @@ let worker = KojinBuilder::new(MemoryBroker::new())
 worker.run().await;
 ```
 
-See `examples/cron_demo.rs` for a complete runnable example.
+See `kojin/examples/cron.rs` for a complete runnable example.
 
 ## Middleware & Observability
 
@@ -164,7 +167,37 @@ println!("succeeded: {}", metrics.tasks_succeeded());
 
 `OtelMiddleware` (behind the `otel` feature) emits `kojin.task.started`, `kojin.task.succeeded`, `kojin.task.failed` counters and a `kojin.task.duration` histogram to any configured OpenTelemetry `MeterProvider`.
 
-See `examples/observability.rs` for a complete runnable example.
+See `kojin/examples/observability.rs` for a complete runnable example.
+
+### Deduplication
+
+With the `dedup` feature flag, you can prevent duplicate task execution using content-based or key-based deduplication:
+
+```toml
+[dependencies]
+kojin = { version = "0.3", features = ["dedup"] }
+```
+
+```rust
+use std::time::Duration;
+use kojin::{DeduplicationMiddleware, KojinBuilder, MemoryBroker, TaskMessage};
+
+// Add dedup middleware with a 5-minute TTL
+let dedup = DeduplicationMiddleware::new(Duration::from_secs(300));
+
+let worker = KojinBuilder::new(MemoryBroker::new())
+    .register_task::<MyTask>()
+    .middleware(dedup)
+    .build();
+
+// Key-based dedup — tasks with the same key within TTL are rejected
+let msg = TaskMessage::new("my_task", "default", payload)
+    .with_dedup_key("order-123");
+
+// Content-based dedup — auto-generates key from task name + payload hash
+let msg = TaskMessage::new("my_task", "default", payload)
+    .with_content_dedup();
+```
 
 ## AMQP Broker (RabbitMQ)
 
@@ -188,7 +221,54 @@ let worker = KojinBuilder::new(broker)
 
 `AmqpBroker` automatically declares the full topology: a direct exchange (`kojin.direct`), per-queue dead-letter queues (`kojin.dlq.*`), and a delayed-message exchange (`kojin.delayed`) for scheduled tasks.
 
-See `examples/amqp.rs` for a complete runnable example.
+### Priority Queues
+
+Enable per-message priority (0–9, higher = more urgent) by setting `max_priority` on the config:
+
+```rust
+let config = AmqpConfig::new("amqp://guest:guest@localhost:5672/%2f")
+    .with_max_priority(10);
+
+let broker = AmqpBroker::new(config, &["orders".into()]).await?;
+
+// Enqueue a high-priority task
+let msg = TaskMessage::new("process_order", "orders", payload)
+    .with_priority(9);
+broker.enqueue(msg).await?;
+```
+
+> **Note:** Changing `max_priority` on an existing queue requires deleting and recreating the queue in RabbitMQ, as `x-max-priority` is an immutable queue argument.
+
+See `kojin/examples/amqp.rs` for a complete runnable example.
+
+## SQS Broker (Amazon SQS)
+
+With the `sqs` feature flag, you can use Amazon SQS as a broker:
+
+```toml
+[dependencies]
+kojin = { version = "0.3", features = ["sqs"] }
+```
+
+```rust
+use kojin::{SqsBroker, SqsConfig, KojinBuilder};
+
+let sdk_config = aws_config::load_defaults(aws_config::BehaviorVersion::latest()).await;
+let config = SqsConfig::new(vec!["https://sqs.us-east-1.amazonaws.com/123456789/my-queue".into()]);
+let broker = SqsBroker::new(&sdk_config, config);
+
+let worker = KojinBuilder::new(broker)
+    .register_task::<MyTask>()
+    .build();
+```
+
+Feature notes:
+- **FIFO queues** — automatically detected from `.fifo` suffix; uses `MessageGroupId` and `MessageDeduplicationId`
+- **Delayed scheduling** — uses SQS `DelaySeconds` (max 15 minutes); for longer delays, re-enqueues periodically
+- **Long polling** — configurable `wait_time_seconds` (default 20s) for efficient message retrieval
+- **No priority support** — SQS does not support message priority; use AMQP if you need priority queues
+
+See `kojin/examples/sqs.rs` for a complete runnable example.
 
 ## Dashboard
 
@@ -216,7 +296,7 @@ let _handle = spawn_dashboard(state, 9090);
 // GET /api/tasks/{id}    — task result (requires result backend)
 ```
 
-See `examples/dashboard.rs` for a complete runnable example.
+See `kojin/examples/dashboard.rs` for a complete runnable example.
 
 ## Crate Architecture
 
@@ -228,6 +308,7 @@ See `examples/dashboard.rs` for a complete runnable example.
 | [`kojin-redis`](https://crates.io/crates/kojin-redis) | Redis broker + result backend via `deadpool-redis` |
 | [`kojin-postgres`](https://crates.io/crates/kojin-postgres) | PostgreSQL result backend via `sqlx` |
 | [`kojin-amqp`](https://crates.io/crates/kojin-amqp) | RabbitMQ broker via `lapin` — topology, DLQ, delayed messages |
+| [`kojin-sqs`](https://crates.io/crates/kojin-sqs) | Amazon SQS broker — standard & FIFO queues, long polling |
 | [`kojin-dashboard`](https://crates.io/crates/kojin-dashboard) | JSON API monitoring dashboard via `axum` |
 
 ## License
