@@ -30,7 +30,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-kojin = "0.3"
+kojin = "0.4"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 async-trait = "0.1"
@@ -123,7 +123,7 @@ With the `cron` feature flag, you can schedule periodic tasks using standard cro
 
 ```toml
 [dependencies]
-kojin = { version = "0.3", features = ["cron"] }
+kojin = { version = "0.4", features = ["cron"] }
 ```
 
 ```rust
@@ -175,7 +175,7 @@ With the `dedup` feature flag, you can prevent duplicate task execution using co
 
 ```toml
 [dependencies]
-kojin = { version = "0.3", features = ["dedup"] }
+kojin = { version = "0.4", features = ["dedup"] }
 ```
 
 ```rust
@@ -205,7 +205,7 @@ With the `amqp` feature flag, you can use RabbitMQ as a production broker:
 
 ```toml
 [dependencies]
-kojin = { version = "0.3", features = ["amqp"] }
+kojin = { version = "0.4", features = ["amqp"] }
 ```
 
 ```rust
@@ -247,7 +247,7 @@ With the `sqs` feature flag, you can use Amazon SQS as a broker:
 
 ```toml
 [dependencies]
-kojin = { version = "0.3", features = ["sqs"] }
+kojin = { version = "0.4", features = ["sqs"] }
 ```
 
 ```rust
@@ -276,7 +276,7 @@ With the `dashboard` feature flag, you get a built-in JSON API for monitoring:
 
 ```toml
 [dependencies]
-kojin = { version = "0.3", features = ["dashboard"] }
+kojin = { version = "0.4", features = ["dashboard"] }
 ```
 
 ```rust

@@ -14,8 +14,8 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-kojin-core = { path = "../kojin-core", version = "0.3.0" }
-kojin-macros = { path = "../kojin-macros", version = "0.3.0" }
+kojin-core = { path = "../kojin-core", version = "0.4.0" }
+kojin-macros = { path = "../kojin-macros", version = "0.4.0" }
 async-trait = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -35,27 +35,27 @@ dashboard = ["dep:kojin-dashboard"]
 
 [dependencies.kojin-redis]
 path = "../kojin-redis"
-version = "0.3.0"
+version = "0.4.0"
 optional = true
 
 [dependencies.kojin-postgres]
 path = "../kojin-postgres"
-version = "0.3.0"
+version = "0.4.0"
 optional = true
 
 [dependencies.kojin-amqp]
 path = "../kojin-amqp"
-version = "0.3.0"
+version = "0.4.0"
 optional = true
 
 [dependencies.kojin-sqs]
 path = "../kojin-sqs"
-version = "0.3.0"
+version = "0.4.0"
 optional = true
 
 [dependencies.kojin-dashboard]
 path = "../kojin-dashboard"
-version = "0.3.0"
+version = "0.4.0"
 optional = true
 
 [dev-dependencies]
