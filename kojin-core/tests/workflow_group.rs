@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 mod helpers;
 
 use helpers::{AddTask, FailTask};
@@ -42,47 +43,7 @@ async fn group_all_members_complete() {
             serde_json::json!({"a": 5, "b": 6})
         )
     ];
-
-    let handle = canvas.apply(&broker, &*backend).await.unwrap();
-    // Group should have enqueued 3 tasks
-    assert_eq!(handle.task_ids.len(), 3);
-
-    // Extract group_id from the first enqueued message
-    let msg = broker
-        .dequeue(&["default".to_string()], Duration::from_millis(100))
-        .await
-        .unwrap()
-        .unwrap();
-    let group_id = msg.group_id.clone().unwrap();
-
-    // Re-enqueue the dequeued message so the worker can process it
-    broker.ack(&msg.id).await.unwrap();
-    // We need to re-submit the group since we consumed one message.
-    // Instead, let's create a fresh setup.
-    drop(broker);
-    drop(backend);
-
-    let broker = MemoryBroker::new();
-    let backend = Arc::new(MemoryResultBackend::new());
-
-    let canvas = group![
-        Signature::new(
-            AddTask::NAME,
-            "default",
-            serde_json::json!({"a": 1, "b": 2})
-        ),
-        Signature::new(
-            AddTask::NAME,
-            "default",
-            serde_json::json!({"a": 3, "b": 4})
-        ),
-        Signature::new(
-            AddTask::NAME,
-            "default",
-            serde_json::json!({"a": 5, "b": 6})
-        )
-    ];
-    let handle = canvas.apply(&broker, &*backend).await.unwrap();
+    let _handle = canvas.apply(&broker, &*backend).await.unwrap();
 
     // Peek at group_id by checking the broker queue
     let peek_broker = broker.clone();

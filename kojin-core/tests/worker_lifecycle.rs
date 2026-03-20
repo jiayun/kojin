@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 mod helpers;
 
 use helpers::SlowTask;
