@@ -120,6 +120,15 @@ pub async fn declare_queue_pair(
         AMQPValue::LongString(name.into()),
     );
 
+    // Priority queue support — changing this on existing queues requires
+    // deleting and recreating them (PRECONDITION_FAILED).
+    if config.max_priority > 0 {
+        args.insert(
+            "x-max-priority".into(),
+            AMQPValue::ShortUInt(config.max_priority as u16),
+        );
+    }
+
     let queue_opts = QueueDeclareOptions {
         durable: true,
         ..Default::default()

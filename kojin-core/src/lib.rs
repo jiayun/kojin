@@ -37,6 +37,8 @@ pub use error::{KojinError, TaskResult};
 pub use memory_broker::MemoryBroker;
 pub use memory_result_backend::MemoryResultBackend;
 pub use message::TaskMessage;
+#[cfg(feature = "dedup")]
+pub use middleware::DeduplicationMiddleware;
 #[cfg(feature = "otel")]
 pub use middleware::OtelMiddleware;
 #[cfg(feature = "rate-limit")]

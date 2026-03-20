@@ -12,6 +12,9 @@ pub struct AmqpConfig {
     pub delayed_exchange: String,
     /// Consumer prefetch count. Default: 10.
     pub prefetch_count: u16,
+    /// Maximum priority level for queues (0 = disabled, max 10).
+    /// Requires deleting and recreating existing queues when changing this value.
+    pub max_priority: u8,
 }
 
 impl AmqpConfig {
@@ -23,6 +26,7 @@ impl AmqpConfig {
             dlx_exchange: "kojin.dlx".into(),
             delayed_exchange: "kojin.delayed".into(),
             prefetch_count: 10,
+            max_priority: 0,
         }
     }
 
@@ -33,6 +37,13 @@ impl AmqpConfig {
 
     pub fn with_prefetch_count(mut self, count: u16) -> Self {
         self.prefetch_count = count;
+        self
+    }
+
+    /// Enable priority queues (max 10). Changing this on existing queues requires
+    /// deleting and recreating them (RabbitMQ `PRECONDITION_FAILED`).
+    pub fn with_max_priority(mut self, max_priority: u8) -> Self {
+        self.max_priority = max_priority.min(10);
         self
     }
 }

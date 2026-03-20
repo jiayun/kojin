@@ -6,6 +6,7 @@ members = [
     "kojin-redis",
     "kojin-postgres",
     "kojin-amqp",
+    "kojin-sqs",
     "kojin-dashboard",
 ]
 resolver = "2"

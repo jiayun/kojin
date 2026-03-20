@@ -21,6 +21,7 @@ pub struct RedisBroker {
     pool: Pool,
     keys: KeyBuilder,
     worker_id: String,
+    dedup_ttl: u64,
 }
 
 impl RedisBroker {
@@ -44,6 +45,7 @@ impl RedisBroker {
             pool,
             keys: KeyBuilder::new(config.key_prefix),
             worker_id,
+            dedup_ttl: config.dedup_ttl,
         })
     }
 
@@ -75,6 +77,26 @@ impl RedisBroker {
 impl Broker for RedisBroker {
     async fn enqueue(&self, message: TaskMessage) -> TaskResult<()> {
         let mut conn = self.conn().await?;
+
+        // Deduplication check via SET NX with TTL
+        if let Some(ref dedup_key) = message.dedup_key {
+            let redis_key = self.keys.dedup(dedup_key);
+            let set: bool = redis::cmd("SET")
+                .arg(&redis_key)
+                .arg(1)
+                .arg("NX")
+                .arg("EX")
+                .arg(self.dedup_ttl)
+                .query_async(&mut *conn)
+                .await
+                .unwrap_or(false);
+
+            if !set {
+                tracing::debug!(dedup_key = %dedup_key, "duplicate task filtered by Redis SET NX");
+                return Ok(());
+            }
+        }
+
         let queue_key = self.keys.queue(&message.queue);
         let serialized = serde_json::to_string(&message)?;
 

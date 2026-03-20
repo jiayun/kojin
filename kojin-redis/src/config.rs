@@ -7,6 +7,8 @@ pub struct RedisConfig {
     pub pool_size: usize,
     /// Key prefix for all Redis keys.
     pub key_prefix: String,
+    /// Deduplication TTL in seconds. Default: 300 (5 minutes).
+    pub dedup_ttl: u64,
 }
 
 impl Default for RedisConfig {
@@ -15,6 +17,7 @@ impl Default for RedisConfig {
             url: "redis://127.0.0.1:6379".to_string(),
             pool_size: 10,
             key_prefix: "kojin".to_string(),
+            dedup_ttl: 300,
         }
     }
 }
@@ -34,6 +37,11 @@ impl RedisConfig {
 
     pub fn with_prefix(mut self, prefix: impl Into<String>) -> Self {
         self.key_prefix = prefix.into();
+        self
+    }
+
+    pub fn with_dedup_ttl(mut self, seconds: u64) -> Self {
+        self.dedup_ttl = seconds;
         self
     }
 }

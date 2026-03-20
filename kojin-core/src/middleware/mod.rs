@@ -1,3 +1,5 @@
+#[cfg(feature = "dedup")]
+pub mod dedup;
 mod metrics;
 #[cfg(feature = "otel")]
 pub mod otel;
@@ -5,6 +7,8 @@ pub mod otel;
 pub mod rate_limit;
 mod tracing_mw;
 
+#[cfg(feature = "dedup")]
+pub use dedup::DeduplicationMiddleware;
 pub use metrics::MetricsMiddleware;
 #[cfg(feature = "otel")]
 pub use otel::OtelMiddleware;

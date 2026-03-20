@@ -60,6 +60,11 @@ impl KeyBuilder {
     pub fn group_results(&self, group_id: &str) -> String {
         format!("{}:group:{}:results", self.prefix, group_id)
     }
+
+    /// Deduplication key: `{prefix}:dedup:{key}`
+    pub fn dedup(&self, key: &str) -> String {
+        format!("{}:dedup:{}", self.prefix, key)
+    }
 }
 
 #[cfg(test)]
@@ -78,5 +83,6 @@ mod tests {
         assert_eq!(kb.group_total("g1"), "kojin:group:g1:total");
         assert_eq!(kb.group_completed("g1"), "kojin:group:g1:completed");
         assert_eq!(kb.group_results("g1"), "kojin:group:g1:results");
+        assert_eq!(kb.dedup("my-key"), "kojin:dedup:my-key");
     }
 }

@@ -33,6 +33,9 @@ pub enum KojinError {
     #[error("shutdown in progress")]
     ShutdownInProgress,
 
+    #[error("duplicate task: {0}")]
+    Duplicate(String),
+
     #[error("{0}")]
     Other(String),
 }

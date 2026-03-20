@@ -192,6 +192,14 @@ impl Broker for AmqpBroker {
         let routing_key: ShortString = message.queue.clone().into();
         let payload = serde_json::to_vec(&message)?;
 
+        let mut props = BasicProperties::default()
+            .with_delivery_mode(2) // persistent
+            .with_content_type("application/json".into());
+
+        if let Some(priority) = message.priority {
+            props = props.with_priority(priority);
+        }
+
         self.inner
             .publish_channel
             .basic_publish(
@@ -199,9 +207,7 @@ impl Broker for AmqpBroker {
                 routing_key,
                 BasicPublishOptions::default(),
                 &payload,
-                BasicProperties::default()
-                    .with_delivery_mode(2) // persistent
-                    .with_content_type("application/json".into()),
+                props,
             )
             .await
             .map_err(broker_err)?

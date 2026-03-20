@@ -230,6 +230,20 @@ async fn execute_task<B: Broker>(
     let task_id = message.id;
     let task_name = message.task_name.clone();
 
+    // ETA guard: if message has a future eta, re-schedule it
+    if let Some(eta) = message.eta {
+        if eta > chrono::Utc::now() {
+            tracing::debug!(task_id = %task_id, %eta, "task eta is in the future — re-scheduling");
+            if let Err(e) = broker.ack(&task_id).await {
+                tracing::error!(task_id = %task_id, error = %e, "failed to ack before re-schedule");
+            }
+            if let Err(e) = broker.schedule(message, eta).await {
+                tracing::error!(task_id = %task_id, error = %e, "failed to re-schedule task with future eta");
+            }
+            return;
+        }
+    }
+
     tracing::info!(task_id = %task_id, task_name = %task_name, "Executing task");
     message.state = TaskState::Started;
 

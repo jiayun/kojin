@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kojin Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e1e4ed;
+    --text-dim: #8b8fa3;
+    --accent: #6c7ee1;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .last-updated { color: var(--text-dim); font-size: 0.85rem; }
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .metric-card .label { color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase; }
+  .metric-card .value { font-size: 1.8rem; font-weight: 700; margin-top: 4px; }
+  .metric-card.started .value { color: var(--accent); }
+  .metric-card.succeeded .value { color: var(--green); }
+  .metric-card.failed .value { color: var(--red); }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  th, td { padding: 10px 14px; text-align: left; }
+  th { background: var(--bg); color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase; }
+  td { border-top: 1px solid var(--border); font-size: 0.9rem; }
+  tr:hover td { background: rgba(108,126,225,0.05); }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge.ok { background: rgba(74,222,128,0.15); color: var(--green); }
+  .badge.warn { background: rgba(251,191,36,0.15); color: var(--yellow); }
+  .badge.error { background: rgba(248,113,113,0.15); color: var(--red); }
+  .expand-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+  }
+  .expand-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .dlq-panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin: 8px 0;
+    padding: 12px;
+    display: none;
+  }
+  .dlq-panel.open { display: block; }
+  .dlq-msg {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 8px;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .dlq-nav { display: flex; gap: 8px; margin-top: 8px; }
+  .section-title { font-size: 1.1rem; margin-bottom: 12px; }
+  .search-box {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .search-box input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    flex: 1;
+    max-width: 400px;
+  }
+  .search-box button {
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  #task-result {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+    display: none;
+    margin-bottom: 24px;
+  }
+  .empty { color: var(--text-dim); text-align: center; padding: 32px; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>Kojin Dashboard</h1>
+      <div class="last-updated" id="updated">Loading...</div>
+    </div>
+  </div>
+
+  <div class="metrics" id="metrics"></div>
+
+  <h2 class="section-title">Queues</h2>
+  <table>
+    <thead><tr><th>Queue</th><th>Pending</th><th>DLQ</th><th>Status</th><th>DLQ Messages</th></tr></thead>
+    <tbody id="queues"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+  </table>
+
+  <h2 class="section-title">Task Lookup</h2>
+  <div class="search-box">
+    <input type="text" id="task-id-input" placeholder="Enter task ID (UUID)">
+    <button onclick="lookupTask()">Lookup</button>
+  </div>
+  <div id="task-result"></div>
+
+<script>
+const DLQ_PAGE_SIZE = 5;
+const dlqState = {};
+let queueData = [];
+
+async function fetchJSON(url) {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+async function refresh() {
+  const [queues, metrics] = await Promise.all([
+    fetchJSON('/api/queues'),
+    fetchJSON('/api/metrics')
+  ]);
+
+  document.getElementById('updated').textContent =
+    'Last updated: ' + new Date().toLocaleTimeString();
+
+  // Metrics
+  const mc = document.getElementById('metrics');
+  if (metrics) {
+    mc.innerHTML = `
+      <div class="metric-card started"><div class="label">Started</div><div class="value">${metrics.tasks_started}</div></div>
+      <div class="metric-card succeeded"><div class="label">Succeeded</div><div class="value">${metrics.tasks_succeeded}</div></div>
+      <div class="metric-card failed"><div class="label">Failed</div><div class="value">${metrics.tasks_failed}</div></div>
+    `;
+  } else {
+    mc.innerHTML = '<div class="metric-card"><div class="label">Metrics</div><div class="value" style="font-size:0.9rem;color:var(--text-dim)">No MetricsMiddleware</div></div>';
+  }
+
+  // Queues
+  const tb = document.getElementById('queues');
+  if (!queues || queues.length === 0) {
+    tb.innerHTML = '<tr><td colspan="5" class="empty">No queues found</td></tr>';
+    return;
+  }
+
+  queueData = queues;
+  tb.innerHTML = queues.map((q, i) => {
+    const status = q.dlq_length > 0 ? (q.dlq_length > 10 ? 'error' : 'warn') : 'ok';
+    const label = q.dlq_length > 0 ? (q.dlq_length > 10 ? 'Errors' : 'Warning') : 'Healthy';
+    return `<tr>
+      <td><strong>${esc(q.name)}</strong></td>
+      <td>${q.length}</td>
+      <td>${q.dlq_length}</td>
+      <td><span class="badge ${status}">${label}</span></td>
+      <td>${q.dlq_length > 0 ? `<button class="expand-btn" onclick="toggleDlq(${i})">View DLQ</button>` : '-'}</td>
+    </tr>
+    <tr><td colspan="5" style="padding:0"><div class="dlq-panel" id="dlq-${i}"></div></td></tr>`;
+  }).join('');
+}
+
+async function toggleDlq(idx) {
+  const name = queueData[idx].name;
+  const panel = document.getElementById('dlq-' + idx);
+  if (panel.classList.contains('open')) {
+    panel.classList.remove('open');
+    return;
+  }
+  if (!dlqState[name]) dlqState[name] = { offset: 0 };
+  await loadDlq(idx);
+  panel.classList.add('open');
+}
+
+async function loadDlq(idx) {
+  const name = queueData[idx].name;
+  const s = dlqState[name];
+  const msgs = await fetchJSON(`/api/queues/${encodeURIComponent(name)}/dlq?offset=${s.offset}&limit=${DLQ_PAGE_SIZE}`);
+  const panel = document.getElementById('dlq-' + idx);
+  if (!msgs || msgs.length === 0) {
+    panel.innerHTML = '<div class="empty">No DLQ messages</div>';
+    return;
+  }
+  panel.innerHTML = msgs.map(m => `<div class="dlq-msg"><strong>${esc(m.task_name)}</strong> [${esc(m.id)}]\nState: ${esc(m.state)} | Retries: ${m.retries}/${m.max_retries}\nPayload: ${esc(JSON.stringify(m.payload, null, 2))}</div>`).join('') +
+    `<div class="dlq-nav">
+      ${s.offset > 0 ? `<button class="expand-btn" onclick="pageDlq(${idx},-1)">Prev</button>` : ''}
+      ${msgs.length === DLQ_PAGE_SIZE ? `<button class="expand-btn" onclick="pageDlq(${idx},1)">Next</button>` : ''}
+    </div>`;
+}
+
+async function pageDlq(idx, dir) {
+  const name = queueData[idx].name;
+  dlqState[name].offset = Math.max(0, dlqState[name].offset + dir * DLQ_PAGE_SIZE);
+  await loadDlq(idx);
+}
+
+async function lookupTask() {
+  const id = document.getElementById('task-id-input').value.trim();
+  const el = document.getElementById('task-result');
+  if (!id) { el.style.display = 'none'; return; }
+  const data = await fetchJSON('/api/tasks/' + encodeURIComponent(id));
+  if (data) {
+    el.textContent = JSON.stringify(data, null, 2);
+    el.style.display = 'block';
+  } else {
+    el.textContent = 'Task not found or no result backend configured.';
+    el.style.display = 'block';
+  }
+}
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

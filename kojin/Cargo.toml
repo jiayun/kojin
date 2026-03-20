@@ -28,7 +28,9 @@ postgres = ["dep:kojin-postgres"]
 cron = ["kojin-core/cron"]
 rate-limit = ["kojin-core/rate-limit"]
 otel = ["kojin-core/otel"]
+dedup = ["kojin-core/dedup"]
 amqp = ["dep:kojin-amqp"]
+sqs = ["dep:kojin-sqs"]
 dashboard = ["dep:kojin-dashboard"]
 
 [dependencies.kojin-redis]
@@ -43,6 +45,11 @@ optional = true
 
 [dependencies.kojin-amqp]
 path = "../kojin-amqp"
+version = "0.3.0"
+optional = true
+
+[dependencies.kojin-sqs]
+path = "../kojin-sqs"
 version = "0.3.0"
 optional = true
 

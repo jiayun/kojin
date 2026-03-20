@@ -51,6 +51,10 @@ pub use kojin_postgres::PostgresResultBackend;
 #[cfg(feature = "amqp")]
 pub use kojin_amqp::{AmqpBroker, AmqpConfig};
 
+// Re-export SQS broker when feature is enabled
+#[cfg(feature = "sqs")]
+pub use kojin_sqs::{SqsBroker, SqsConfig};
+
 // Re-export dashboard when feature is enabled
 #[cfg(feature = "dashboard")]
 pub use kojin_dashboard::{DashboardConfig, DashboardState, dashboard_router, spawn_dashboard};

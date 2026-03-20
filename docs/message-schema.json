@@ -1,0 +1,114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/jiayun/kojin/blob/main/docs/message-schema.json",
+  "title": "Kojin TaskMessage",
+  "description": "Wire format for tasks flowing through a Kojin broker. Any language can produce or consume messages that conform to this schema.",
+  "type": "object",
+  "required": [
+    "id",
+    "task_name",
+    "queue",
+    "payload",
+    "state",
+    "retries",
+    "max_retries",
+    "created_at",
+    "updated_at",
+    "headers"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUIDv7 task identifier."
+    },
+    "task_name": {
+      "type": "string",
+      "description": "Registered task name (e.g. 'send_email')."
+    },
+    "queue": {
+      "type": "string",
+      "description": "Target queue name."
+    },
+    "payload": {
+      "description": "Arbitrary JSON task arguments."
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "received",
+        "started",
+        "success",
+        "failure",
+        "retry",
+        "revoked",
+        "dead_lettered"
+      ],
+      "description": "Current task state."
+    },
+    "retries": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Current retry count."
+    },
+    "max_retries": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Maximum allowed retries."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 creation timestamp."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 last-update timestamp."
+    },
+    "eta": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Earliest time to execute (optional)."
+    },
+    "headers": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Arbitrary string key-value headers for middleware/tracing."
+    },
+    "parent_id": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "Parent task ID for workflow tracking (optional)."
+    },
+    "correlation_id": {
+      "type": ["string", "null"],
+      "description": "Correlation ID for distributed tracing (optional)."
+    },
+    "group_id": {
+      "type": ["string", "null"],
+      "description": "Group ID this task belongs to (optional)."
+    },
+    "group_total": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Total tasks in the group (optional)."
+    },
+    "chord_callback": {
+      "description": "Nested TaskMessage to enqueue when all group members complete (optional).",
+      "$ref": "#"
+    },
+    "priority": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 9,
+      "description": "Task priority (0-9, higher=more urgent). Broker-specific support (optional)."
+    },
+    "dedup_key": {
+      "type": ["string", "null"],
+      "description": "Deduplication key. Brokers may skip enqueue if duplicate exists (optional)."
+    }
+  },
+  "additionalProperties": false
+}

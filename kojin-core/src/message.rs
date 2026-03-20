@@ -47,6 +47,14 @@ pub struct TaskMessage {
     /// Chord callback to enqueue when all group members complete.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chord_callback: Option<Box<TaskMessage>>,
+
+    // -- Priority & deduplication (Phase 4) --
+    /// Task priority (0–9, higher = more urgent). Broker-specific support.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub priority: Option<u8>,
+    /// Deduplication key. If set, brokers may skip enqueue when a duplicate exists.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dedup_key: Option<String>,
 }
 
 impl TaskMessage {
@@ -74,6 +82,8 @@ impl TaskMessage {
             group_id: None,
             group_total: None,
             chord_callback: None,
+            priority: None,
+            dedup_key: None,
         }
     }
 
@@ -119,6 +129,45 @@ impl TaskMessage {
         self.chord_callback = Some(Box::new(callback));
         self
     }
+
+    /// Set task priority (clamped to 0–9, higher = more urgent).
+    pub fn with_priority(mut self, priority: u8) -> Self {
+        if priority > 9 {
+            tracing::warn!(
+                requested = priority,
+                clamped = 9,
+                "priority clamped to max value 9"
+            );
+        }
+        self.priority = Some(priority.min(9));
+        self
+    }
+
+    /// Set an explicit deduplication key.
+    pub fn with_dedup_key(mut self, key: impl Into<String>) -> Self {
+        self.dedup_key = Some(key.into());
+        self
+    }
+
+    /// Auto-generate a dedup key by hashing `task_name` + `payload`.
+    ///
+    /// Uses FNV-1a (64-bit) which is deterministic across Rust versions and platforms,
+    /// unlike `DefaultHasher` which may change between releases.
+    pub fn with_content_dedup(mut self) -> Self {
+        let input = format!("{}:{}", self.task_name, self.payload);
+        self.dedup_key = Some(format!("content:{:x}", fnv1a_64(input.as_bytes())));
+        self
+    }
+}
+
+/// FNV-1a 64-bit hash — deterministic across platforms and Rust versions.
+fn fnv1a_64(data: &[u8]) -> u64 {
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for &byte in data {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    hash
 }
 
 #[cfg(test)]
@@ -158,6 +207,8 @@ mod tests {
         assert!(msg.group_id.is_none());
         assert!(msg.group_total.is_none());
         assert!(msg.chord_callback.is_none());
+        assert!(msg.priority.is_none());
+        assert!(msg.dedup_key.is_none());
     }
 
     #[test]
@@ -183,6 +234,38 @@ mod tests {
         assert!(msg.group_id.is_none());
         assert!(msg.group_total.is_none());
         assert!(msg.chord_callback.is_none());
+        assert!(msg.priority.is_none());
+        assert!(msg.dedup_key.is_none());
+    }
+
+    #[test]
+    fn priority_and_dedup_roundtrip() {
+        let msg = TaskMessage::new("task", "default", serde_json::json!({"x": 1}))
+            .with_priority(5)
+            .with_dedup_key("my-key");
+
+        let json = serde_json::to_string(&msg).unwrap();
+        let deserialized: TaskMessage = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.priority, Some(5));
+        assert_eq!(deserialized.dedup_key.as_deref(), Some("my-key"));
+    }
+
+    #[test]
+    fn priority_clamped_to_9() {
+        let msg = TaskMessage::new("task", "default", serde_json::Value::Null).with_priority(20);
+        assert_eq!(msg.priority, Some(9));
+    }
+
+    #[test]
+    fn content_dedup_deterministic() {
+        let msg1 = TaskMessage::new("task", "q", serde_json::json!({"a": 1})).with_content_dedup();
+        let msg2 = TaskMessage::new("task", "q", serde_json::json!({"a": 1})).with_content_dedup();
+        assert_eq!(msg1.dedup_key, msg2.dedup_key);
+
+        let msg3 =
+            TaskMessage::new("other_task", "q", serde_json::json!({"a": 1})).with_content_dedup();
+        assert_ne!(msg1.dedup_key, msg3.dedup_key);
     }
 
     #[test]

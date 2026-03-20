@@ -1,7 +1,7 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
+use axum::response::{Html, IntoResponse};
 use serde::{Deserialize, Serialize};
 
 use kojin_core::task_id::TaskId;
@@ -104,6 +104,16 @@ pub async fn get_metrics(
         })),
         None => Err(StatusCode::NOT_FOUND),
     }
+}
+
+/// `GET /` — serve the dashboard web UI.
+pub async fn dashboard_ui() -> Html<&'static str> {
+    Html(include_str!("ui.html"))
+}
+
+/// `GET /healthz` — Kubernetes liveness/readiness probe.
+pub async fn healthz() -> impl IntoResponse {
+    Json(serde_json::json!({"status": "ok"}))
 }
 
 /// `GET /api/tasks/:id` — look up a task result.

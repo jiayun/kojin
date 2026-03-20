@@ -1,0 +1,35 @@
+[package]
+name = "kojin-sqs"
+description = "AWS SQS broker for the kojin task queue"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/kojin-sqs"
+readme = "../README.md"
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+default = []
+integration-tests = []
+
+[dependencies]
+kojin-core = { path = "../kojin-core", version = "0.3.0" }
+aws-sdk-sqs = "1"
+aws-config = "1"
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+testcontainers = "0.23"
+testcontainers-modules = { version = "0.11", features = ["localstack"] }
+tokio = { workspace = true }
+aws-credential-types = "1"

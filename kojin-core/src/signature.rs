@@ -22,6 +22,12 @@ pub struct Signature {
     pub eta: Option<DateTime<Utc>>,
     /// Arbitrary headers.
     pub headers: HashMap<String, String>,
+    /// Task priority (0–9, higher = more urgent).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub priority: Option<u8>,
+    /// Deduplication key.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dedup_key: Option<String>,
 }
 
 impl Signature {
@@ -38,6 +44,8 @@ impl Signature {
             max_retries: 3,
             eta: None,
             headers: HashMap::new(),
+            priority: None,
+            dedup_key: None,
         }
     }
 
@@ -59,12 +67,33 @@ impl Signature {
         self
     }
 
+    /// Set task priority (clamped to 0–9).
+    pub fn with_priority(mut self, priority: u8) -> Self {
+        if priority > 9 {
+            tracing::warn!(
+                requested = priority,
+                clamped = 9,
+                "priority clamped to max value 9"
+            );
+        }
+        self.priority = Some(priority.min(9));
+        self
+    }
+
+    /// Set deduplication key.
+    pub fn with_dedup_key(mut self, key: impl Into<String>) -> Self {
+        self.dedup_key = Some(key.into());
+        self
+    }
+
     /// Convert this signature into a [`TaskMessage`] ready for enqueuing.
     pub fn into_message(self) -> TaskMessage {
         let mut msg = TaskMessage::new(self.task_name, self.queue, self.payload)
             .with_max_retries(self.max_retries);
         msg.eta = self.eta;
         msg.headers = self.headers;
+        msg.priority = self.priority;
+        msg.dedup_key = self.dedup_key;
         msg
     }
 }

@@ -7,6 +7,8 @@
 //!
 //! | Endpoint | Description |
 //! |----------|-------------|
+//! | `GET /` | Web UI dashboard |
+//! | `GET /healthz` | K8s liveness/readiness probe |
 //! | `GET /api/queues` | List queues with lengths + DLQ lengths |
 //! | `GET /api/queues/:name` | Single queue detail |
 //! | `GET /api/queues/:name/dlq` | Paginated DLQ messages |
@@ -52,9 +54,11 @@ impl Default for DashboardConfig {
     }
 }
 
-/// Build the dashboard [`Router`] with all API routes.
+/// Build the dashboard [`Router`] with all API routes and web UI.
 pub fn dashboard_router(state: DashboardState) -> Router {
     Router::new()
+        .route("/", axum::routing::get(routes::dashboard_ui))
+        .route("/healthz", axum::routing::get(routes::healthz))
         .route("/api/queues", axum::routing::get(routes::list_queues))
         .route("/api/queues/{name}", axum::routing::get(routes::get_queue))
         .route(

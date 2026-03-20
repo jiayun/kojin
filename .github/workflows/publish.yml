@@ -48,6 +48,9 @@ jobs:
       - name: Publish kojin-amqp
         run: cargo publish -p kojin-amqp || echo "Already published"
 
+      - name: Publish kojin-sqs
+        run: cargo publish -p kojin-sqs || echo "Already published"
+
       - name: Publish kojin-dashboard
         run: cargo publish -p kojin-dashboard || echo "Already published"
 
