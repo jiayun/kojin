@@ -1,0 +1,5 @@
+error: #[task] function must have at least one parameter: ctx: &TaskContext
+ --> tests/fail/no_params.rs:4:1
+  |
+4 | async fn my_task() {}
+  | ^^^^^^^^^^^^^^^^^^

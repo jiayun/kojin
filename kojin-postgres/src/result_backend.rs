@@ -233,6 +233,29 @@ impl ResultBackend for PostgresResultBackend {
     }
 }
 
+#[cfg(test)]
+mod unit_tests {
+    use super::*;
+
+    #[test]
+    fn backend_err_formats_message() {
+        let err = backend_err("oops");
+        match err {
+            KojinError::ResultBackend(msg) => assert_eq!(msg, "oops"),
+            other => panic!("expected ResultBackend, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn backend_err_formats_display_types() {
+        let err = backend_err(42);
+        match err {
+            KojinError::ResultBackend(msg) => assert_eq!(msg, "42"),
+            other => panic!("expected ResultBackend, got: {other:?}"),
+        }
+    }
+}
+
 #[cfg(all(test, feature = "integration-tests"))]
 mod tests {
     use super::*;

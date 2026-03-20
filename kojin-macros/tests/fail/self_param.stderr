@@ -1,0 +1,5 @@
+error: #[task] function cannot have self parameter
+ --> tests/fail/self_param.rs:7:22
+  |
+7 |     async fn my_task(&self) {}
+  |                      ^^^^^

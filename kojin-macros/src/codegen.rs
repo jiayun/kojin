@@ -142,6 +142,31 @@ fn to_pascal_case(s: &str) -> String {
         .collect()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pascal_case_simple() {
+        assert_eq!(to_pascal_case("my_task"), "MyTask");
+    }
+
+    #[test]
+    fn pascal_case_single_word() {
+        assert_eq!(to_pascal_case("task"), "Task");
+    }
+
+    #[test]
+    fn pascal_case_multiple_underscores() {
+        assert_eq!(to_pascal_case("my_long_task_name"), "MyLongTaskName");
+    }
+
+    #[test]
+    fn pascal_case_empty() {
+        assert_eq!(to_pascal_case(""), "");
+    }
+}
+
 fn extract_result_inner(ty: &Type) -> TokenStream {
     // Try to extract T from TaskResult<T> or Result<T, ...>
     if let Type::Path(type_path) = ty {

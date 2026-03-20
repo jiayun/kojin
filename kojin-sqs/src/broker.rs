@@ -364,6 +364,30 @@ mod tests {
             "my-queue"
         );
     }
+
+    #[test]
+    fn extract_queue_name_bare() {
+        assert_eq!(queue_name_from_url("my-queue"), "my-queue");
+    }
+
+    #[test]
+    fn extract_queue_name_trailing_fifo() {
+        assert_eq!(queue_name_from_url("my-queue.fifo"), "my-queue");
+    }
+
+    #[test]
+    fn is_fifo_standard() {
+        assert!(!SqsBroker::is_fifo(
+            "http://localhost:4566/000000000000/my-queue"
+        ));
+    }
+
+    #[test]
+    fn is_fifo_fifo_queue() {
+        assert!(SqsBroker::is_fifo(
+            "http://localhost:4566/000000000000/my-queue.fifo"
+        ));
+    }
 }
 
 #[cfg(all(test, feature = "integration-tests"))]

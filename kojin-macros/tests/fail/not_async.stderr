@@ -1,0 +1,13 @@
+error: #[task] function must be async
+ --> tests/fail/not_async.rs:5:1
+  |
+5 | fn my_task(ctx: &TaskContext) {}
+  | ^^
+
+warning: unused import: `kojin_core::TaskContext`
+ --> tests/fail/not_async.rs:2:5
+  |
+2 | use kojin_core::TaskContext;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default

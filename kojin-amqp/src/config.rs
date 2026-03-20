@@ -47,3 +47,43 @@ impl AmqpConfig {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn defaults() {
+        let cfg = AmqpConfig::new("amqp://localhost");
+        assert_eq!(cfg.url, "amqp://localhost");
+        assert_eq!(cfg.exchange, "kojin.direct");
+        assert_eq!(cfg.dlx_exchange, "kojin.dlx");
+        assert_eq!(cfg.delayed_exchange, "kojin.delayed");
+        assert_eq!(cfg.prefetch_count, 10);
+        assert_eq!(cfg.max_priority, 0);
+    }
+
+    #[test]
+    fn with_exchange() {
+        let cfg = AmqpConfig::new("amqp://localhost").with_exchange("custom.exchange");
+        assert_eq!(cfg.exchange, "custom.exchange");
+    }
+
+    #[test]
+    fn with_prefetch_count() {
+        let cfg = AmqpConfig::new("amqp://localhost").with_prefetch_count(50);
+        assert_eq!(cfg.prefetch_count, 50);
+    }
+
+    #[test]
+    fn with_max_priority_clamps_to_10() {
+        let cfg = AmqpConfig::new("amqp://localhost").with_max_priority(255);
+        assert_eq!(cfg.max_priority, 10);
+    }
+
+    #[test]
+    fn with_max_priority_normal() {
+        let cfg = AmqpConfig::new("amqp://localhost").with_max_priority(5);
+        assert_eq!(cfg.max_priority, 5);
+    }
+}
