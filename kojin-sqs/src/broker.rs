@@ -401,7 +401,7 @@ mod integration_tests {
         let port = container.get_host_port_ipv4(4566).await.unwrap();
         let endpoint = format!("http://127.0.0.1:{port}");
 
-        let sdk_config = aws_config::from_env()
+        let sdk_config = aws_config::defaults(aws_config::BehaviorVersion::latest())
             .endpoint_url(&endpoint)
             .region(aws_config::Region::new("us-east-1"))
             .credentials_provider(aws_credential_types::Credentials::new(
