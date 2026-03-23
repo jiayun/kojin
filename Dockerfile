@@ -19,4 +19,6 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/kojin-worker /usr/local/bin/
 COPY --from=builder /app/target/release/kojin-producer /usr/local/bin/
+COPY --from=builder /app/target/release/kojin-worker-amqp /usr/local/bin/
+COPY --from=builder /app/target/release/kojin-producer-amqp /usr/local/bin/
 ENTRYPOINT ["kojin-worker"]

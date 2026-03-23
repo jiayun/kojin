@@ -107,6 +107,45 @@ services:
       worker:
         condition: service_started
 
+  # --- Profile: amqp-priority (RabbitMQ message-level priority) ---
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    profiles: [amqp-priority]
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    entrypoint: ["sh", "-c", "echo 'kojin' > /var/lib/rabbitmq/.erlang.cookie && chmod 600 /var/lib/rabbitmq/.erlang.cookie && exec rabbitmq-server"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  producer-amqp:
+    image: kojin-examples
+    build: .
+    profiles: [amqp-priority]
+    entrypoint: [kojin-producer-amqp]
+    environment:
+      AMQP_URL: amqp://guest:guest@rabbitmq:5672/%2f
+      RUST_LOG: info
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  worker-amqp:
+    image: kojin-examples
+    build: .
+    profiles: [amqp-priority]
+    entrypoint: [kojin-worker-amqp]
+    environment:
+      AMQP_URL: amqp://guest:guest@rabbitmq:5672/%2f
+      RUST_LOG: info
+    depends_on:
+      producer-amqp:
+        condition: service_completed_successfully
+
   # --- Profile: dashboard (monitoring UI) ---
 
   worker-dashboard:

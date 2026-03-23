@@ -26,6 +26,9 @@ docker compose --profile chord up
 # Priority tasks across weighted queues
 docker compose --profile priority up
 
+# RabbitMQ native message-level priority
+docker compose --profile amqp-priority up
+
 # Worker with monitoring dashboard on http://localhost:9090
 docker compose --profile dashboard up
 
@@ -46,6 +49,7 @@ docker compose down -v
 | `basic` | redis, worker (x3), producer-basic | Fan-out: 20 `AddTask` items across 3 competing workers |
 | `chord` | redis, postgres, worker-pg, producer-chord | Chord workflow with Postgres result backend |
 | `priority` | redis, worker (x3), producer-priority | Tasks across `high`, `medium`, `low` queues |
+| `amqp-priority` | rabbitmq, worker-amqp, producer-amqp | RabbitMQ native message-level priority in single queue |
 | `dashboard` | redis, worker (x3), worker-dashboard | Monitoring UI on port 9090 |
 
 ## Environment Variables
