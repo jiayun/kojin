@@ -1,10 +1,12 @@
 x-worker: &worker
+  image: kojin-examples
   build: .
   environment:
     REDIS_URL: redis://redis:6379
     RUST_LOG: info
 
 x-producer: &producer
+  image: kojin-examples
   build: .
   entrypoint: [kojin-producer]
   environment:

@@ -1,13 +1,11 @@
 # --- Stage 1: generate dependency recipe ---
-FROM rust:1.85-bookworm AS chef
-RUN cargo install cargo-chef
+FROM lukemathwalker/cargo-chef:latest-rust-1.94-bookworm AS chef
 WORKDIR /app
 COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
 # --- Stage 2: build dependencies + binaries ---
-FROM rust:1.85-bookworm AS builder
-RUN cargo install cargo-chef
+FROM lukemathwalker/cargo-chef:latest-rust-1.94-bookworm AS builder
 WORKDIR /app
 COPY --from=chef /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
