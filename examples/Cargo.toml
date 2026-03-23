@@ -1,0 +1,25 @@
+[package]
+name = "kojin-examples"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[lib]
+path = "src/tasks.rs"
+
+[[bin]]
+name = "kojin-worker"
+path = "src/worker.rs"
+
+[[bin]]
+name = "kojin-producer"
+path = "src/producer.rs"
+
+[dependencies]
+kojin = { path = "../kojin", features = ["redis", "postgres", "dashboard"] }
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }

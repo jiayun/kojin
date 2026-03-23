@@ -2472,6 +2472,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "kojin-examples"
+version = "0.4.0"
+dependencies = [
+ "async-trait",
+ "kojin",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "kojin-macros"
 version = "0.4.0"
 dependencies = [
