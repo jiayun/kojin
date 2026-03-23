@@ -26,10 +26,11 @@ services:
       timeout: 3s
       retries: 5
 
-  # --- Base worker (no profile = always on) ---
+  # --- Base worker (for basic/priority/dashboard profiles) ---
 
   worker:
     <<: *worker
+    profiles: [basic, priority, dashboard]
     deploy:
       replicas: 3
     depends_on:
@@ -84,11 +85,14 @@ services:
     profiles: [chord]
     environment:
       REDIS_URL: redis://redis:6379
+      POSTGRES_URL: postgres://kojin:kojin@postgres:5432/kojin
       SCENARIO: chord
       RUST_LOG: info
     depends_on:
       worker-pg:
         condition: service_started
+      postgres:
+        condition: service_healthy
 
   # --- Profile: priority (weighted queues demo) ---
 

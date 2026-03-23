@@ -43,11 +43,10 @@ docker compose down -v
 
 | Profile | Services Started | What It Demonstrates |
 |---------|-----------------|---------------------|
-| *(none)* | redis, worker (x3) | 3 idle workers connected to Redis |
-| `basic` | + producer-basic | Fan-out: 20 `AddTask` items across 3 competing workers |
-| `chord` | + postgres, worker-pg, producer-chord | Chord workflow with Postgres result backend |
-| `priority` | + producer-priority | Tasks across `high`, `medium`, `low` queues |
-| `dashboard` | + worker-dashboard | Monitoring UI on port 9090 |
+| `basic` | redis, worker (x3), producer-basic | Fan-out: 20 `AddTask` items across 3 competing workers |
+| `chord` | redis, postgres, worker-pg, producer-chord | Chord workflow with Postgres result backend |
+| `priority` | redis, worker (x3), producer-priority | Tasks across `high`, `medium`, `low` queues |
+| `dashboard` | redis, worker (x3), worker-dashboard | Monitoring UI on port 9090 |
 
 ## Environment Variables
 

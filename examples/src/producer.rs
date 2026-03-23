@@ -1,4 +1,6 @@
-use kojin::{Broker, RedisBroker, RedisConfig, Signature, TaskMessage, chord};
+use kojin::{
+    Broker, PostgresResultBackend, RedisBroker, RedisConfig, Signature, TaskMessage, chord,
+};
 use kojin_examples::{AddTask, PriorityTask};
 use tracing_subscriber::EnvFilter;
 
@@ -48,8 +50,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let callback = add_sig(100, 200);
             let workflow = chord(tasks, callback);
 
-            // chord.apply needs a result backend — use Redis result backend
-            let backend = kojin::RedisResultBackend::new(RedisConfig::new(&redis_url)).await?;
+            // chord.apply needs a result backend — use Postgres to match the worker
+            let pg_url =
+                std::env::var("POSTGRES_URL").expect("POSTGRES_URL required for chord scenario");
+            let backend = PostgresResultBackend::connect(&pg_url).await?;
+            backend.migrate().await?;
             let handle = workflow.apply(&broker, &backend).await?;
             tracing::info!("chord submitted: {}", handle.id);
         }
