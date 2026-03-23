@@ -28,6 +28,8 @@ services:
 
   worker:
     <<: *worker
+    deploy:
+      replicas: 3
     depends_on:
       redis:
         condition: service_healthy

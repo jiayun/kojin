@@ -28,8 +28,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match scenario.as_str() {
         "basic" => {
-            tracing::info!("enqueuing 10 AddTasks");
-            for i in 0..10 {
+            tracing::info!("enqueuing 20 AddTasks");
+            for i in 0..20 {
                 let msg = TaskMessage::new(
                     "add",
                     "default",

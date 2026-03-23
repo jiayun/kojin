@@ -16,6 +16,7 @@ impl Task for AddTask {
 
     async fn run(&self, _ctx: &TaskContext) -> TaskResult<Self::Output> {
         let result = self.a + self.b;
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
         tracing::info!("add({}, {}) = {}", self.a, self.b, result);
         Ok(result)
     }
