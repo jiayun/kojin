@@ -1,0 +1,116 @@
+x-worker: &worker
+  build: .
+  environment:
+    REDIS_URL: redis://redis:6379
+    RUST_LOG: info
+
+x-producer: &producer
+  build: .
+  entrypoint: [kojin-producer]
+  environment:
+    REDIS_URL: redis://redis:6379
+    RUST_LOG: info
+
+services:
+  # --- Infrastructure (always on) ---
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # --- Base worker (no profile = always on) ---
+
+  worker:
+    <<: *worker
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # --- Profile: basic (fan-out demo) ---
+
+  producer-basic:
+    <<: *producer
+    profiles: [basic]
+    environment:
+      REDIS_URL: redis://redis:6379
+      SCENARIO: basic
+      RUST_LOG: info
+    depends_on:
+      worker:
+        condition: service_started
+
+  # --- Profile: chord (workflow + Postgres result backend) ---
+
+  postgres:
+    image: postgres:16-alpine
+    profiles: [chord]
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: kojin
+      POSTGRES_USER: kojin
+      POSTGRES_PASSWORD: kojin
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kojin"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  worker-pg:
+    <<: *worker
+    profiles: [chord]
+    environment:
+      REDIS_URL: redis://redis:6379
+      POSTGRES_URL: postgres://kojin:kojin@postgres:5432/kojin
+      RUST_LOG: info
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  producer-chord:
+    <<: *producer
+    profiles: [chord]
+    environment:
+      REDIS_URL: redis://redis:6379
+      SCENARIO: chord
+      RUST_LOG: info
+    depends_on:
+      worker-pg:
+        condition: service_started
+
+  # --- Profile: priority (weighted queues demo) ---
+
+  producer-priority:
+    <<: *producer
+    profiles: [priority]
+    environment:
+      REDIS_URL: redis://redis:6379
+      SCENARIO: priority
+      RUST_LOG: info
+    depends_on:
+      worker:
+        condition: service_started
+
+  # --- Profile: dashboard (monitoring UI) ---
+
+  worker-dashboard:
+    <<: *worker
+    profiles: [dashboard]
+    environment:
+      REDIS_URL: redis://redis:6379
+      DASHBOARD: "1"
+      DASHBOARD_PORT: "9090"
+      RUST_LOG: info
+    ports:
+      - "9090:9090"
+    depends_on:
+      redis:
+        condition: service_healthy
