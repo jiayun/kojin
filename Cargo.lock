@@ -2400,6 +2400,7 @@ dependencies = [
  "async-trait",
  "aws-config",
  "chrono",
+ "kojin-agent",
  "kojin-amqp",
  "kojin-core",
  "kojin-dashboard",
@@ -2411,6 +2412,18 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "kojin-agent"
+version = "0.4.0"
+dependencies = [
+ "async-trait",
+ "kojin-core",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

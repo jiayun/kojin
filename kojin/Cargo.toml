@@ -32,6 +32,7 @@ dedup = ["kojin-core/dedup"]
 amqp = ["dep:kojin-amqp"]
 sqs = ["dep:kojin-sqs"]
 dashboard = ["dep:kojin-dashboard"]
+agent = ["dep:kojin-agent"]
 
 [dependencies.kojin-redis]
 path = "../kojin-redis"
@@ -55,6 +56,11 @@ optional = true
 
 [dependencies.kojin-dashboard]
 path = "../kojin-dashboard"
+version = "0.4.0"
+optional = true
+
+[dependencies.kojin-agent]
+path = "../kojin-agent"
 version = "0.4.0"
 optional = true
 

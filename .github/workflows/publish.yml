@@ -54,6 +54,9 @@ jobs:
       - name: Publish kojin-dashboard
         run: cargo publish -p kojin-dashboard || echo "Already published"
 
+      - name: Publish kojin-agent
+        run: cargo publish -p kojin-agent || echo "Already published"
+
       - name: Wait for crates.io index update
         run: sleep 30
 

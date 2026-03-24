@@ -8,6 +8,7 @@ members = [
     "kojin-amqp",
     "kojin-sqs",
     "kojin-dashboard",
+    "kojin-agent",
     "examples",
 ]
 resolver = "2"

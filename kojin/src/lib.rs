@@ -59,5 +59,11 @@ pub use kojin_sqs::{SqsBroker, SqsConfig};
 #[cfg(feature = "dashboard")]
 pub use kojin_dashboard::{DashboardConfig, DashboardState, dashboard_router, spawn_dashboard};
 
+// Re-export agent orchestration when feature is enabled
+#[cfg(feature = "agent")]
+pub use kojin_agent::{
+    ClaudeCodeTask, ClaudeRunner, ProcessRunner, RunArgs, RunOutput, SemaphoreRunner, claude_sig,
+};
+
 mod builder;
 pub use builder::KojinBuilder;
