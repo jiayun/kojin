@@ -23,8 +23,16 @@ path = "src/worker_amqp.rs"
 name = "kojin-producer-amqp"
 path = "src/producer_amqp.rs"
 
+[[bin]]
+name = "kojin-worker-agent"
+path = "src/worker_agent.rs"
+
+[[bin]]
+name = "kojin-producer-agent"
+path = "src/producer_agent.rs"
+
 [dependencies]
-kojin = { path = "../kojin", features = ["redis", "postgres", "dashboard", "amqp"] }
+kojin = { path = "../kojin", features = ["redis", "postgres", "dashboard", "amqp", "agent"] }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

@@ -29,6 +29,9 @@ docker compose --profile priority up
 # RabbitMQ native message-level priority
 docker compose --profile amqp-priority up
 
+# AI agent orchestration (requires ANTHROPIC_API_KEY)
+ANTHROPIC_API_KEY=sk-ant-... docker compose --profile agent up
+
 # Worker with monitoring dashboard on http://localhost:9090
 docker compose --profile dashboard up
 
@@ -50,6 +53,7 @@ docker compose down -v
 | `chord` | redis, postgres, worker-pg, producer-chord | Chord workflow with Postgres result backend |
 | `priority` | redis, worker (x3), producer-priority | Tasks across `high`, `medium`, `low` queues |
 | `amqp-priority` | rabbitmq, worker-amqp, producer-amqp | RabbitMQ native message-level priority in single queue |
+| `agent` | redis, worker-agent, producer-agent | AI agent orchestration with Claude Code |
 | `dashboard` | redis, worker (x3), worker-dashboard | Monitoring UI on port 9090 |
 
 ## Environment Variables

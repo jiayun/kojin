@@ -161,3 +161,35 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+
+  # --- Profile: agent (AI agent orchestration) ---
+  # Auth: uncomment ONE of the following in worker-agent:
+  #   A. API key:  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+  #   B. OAuth:    volumes: ["${HOME}/.claude/.credentials.json:/root/.claude/.credentials.json:ro"]
+
+  worker-agent:
+    image: kojin-examples
+    build: .
+    profiles: [agent]
+    entrypoint: [kojin-worker-agent]
+    environment:
+      REDIS_URL: redis://redis:6379
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      MAX_CONCURRENT_AGENTS: "3"
+      RUST_LOG: info
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  producer-agent:
+    image: kojin-examples
+    build: .
+    profiles: [agent]
+    entrypoint: [kojin-producer-agent]
+    environment:
+      REDIS_URL: redis://redis:6379
+      SCENARIO: single
+      RUST_LOG: info
+    depends_on:
+      worker-agent:
+        condition: service_started

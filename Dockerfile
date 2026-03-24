@@ -21,4 +21,6 @@ COPY --from=builder /app/target/release/kojin-worker /usr/local/bin/
 COPY --from=builder /app/target/release/kojin-producer /usr/local/bin/
 COPY --from=builder /app/target/release/kojin-worker-amqp /usr/local/bin/
 COPY --from=builder /app/target/release/kojin-producer-amqp /usr/local/bin/
+COPY --from=builder /app/target/release/kojin-worker-agent /usr/local/bin/
+COPY --from=builder /app/target/release/kojin-producer-agent /usr/local/bin/
 ENTRYPOINT ["kojin-worker"]

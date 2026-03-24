@@ -298,6 +298,57 @@ let _handle = spawn_dashboard(state, 9090);
 
 See `kojin/examples/dashboard.rs` for a complete runnable example.
 
+## Agent Orchestration
+
+With the `agent` feature flag, you can orchestrate Claude Code agents as distributed tasks:
+
+```toml
+[dependencies]
+kojin = { version = "0.4", features = ["agent"] }
+```
+
+```rust
+use std::sync::Arc;
+use kojin::{
+    KojinBuilder, ClaudeCodeTask, ClaudeRunner, ProcessRunner, SemaphoreRunner,
+    RunArgs, claude_sig, chain, group, chord,
+};
+
+// Create a rate-limited runner (max 3 concurrent agents)
+let runner = SemaphoreRunner::new(ProcessRunner::new(), 3);
+let runner: Arc<dyn ClaudeRunner> = Arc::new(runner);
+
+// Register in worker
+let worker = KojinBuilder::new(broker)
+    .register_task::<ClaudeCodeTask>()
+    .data(runner)
+    .queues(vec!["agents".into()])
+    .build();
+
+// Compose workflows with claude_sig()
+let args = RunArgs::default().with_model("sonnet").with_max_turns(5);
+
+// Parallel code review
+let review = group![
+    claude_sig("Review auth.rs for security issues", args.clone()),
+    claude_sig("Review db.rs for SQL injection", args.clone()),
+];
+
+// Sequential pipeline
+let pipeline = chain![
+    claude_sig("Write tests", args.clone()),
+    claude_sig("Review the tests", args.clone()),
+];
+
+// Fan-out / fan-in
+let audit = chord(
+    vec![claude_sig("Audit module A", args.clone()), claude_sig("Audit module B", args.clone())],
+    claude_sig("Summarize findings", args.clone()),
+);
+```
+
+See [`examples/docs/agent.md`](examples/docs/agent.md) for Docker Compose setup and authentication options.
+
 ## Docker Compose Examples
 
 Run distributed scenarios with a single command — see [`examples/README.md`](examples/README.md) for full details.
@@ -308,6 +359,7 @@ Run distributed scenarios with a single command — see [`examples/README.md`](e
 | Chord + PostgreSQL | `docker compose --profile chord up` | [docs](examples/docs/chord.md) |
 | Weighted queues | `docker compose --profile priority up` | [docs](examples/docs/priority.md) |
 | RabbitMQ priority | `docker compose --profile amqp-priority up` | [docs](examples/docs/amqp-priority.md) |
+| Agent orchestration | `docker compose --profile agent up` | [docs](examples/docs/agent.md) |
 | Dashboard | `docker compose --profile dashboard up` | [docs](examples/docs/dashboard.md) |
 
 ## Crate Architecture
