@@ -298,6 +298,18 @@ let _handle = spawn_dashboard(state, 9090);
 
 See `kojin/examples/dashboard.rs` for a complete runnable example.
 
+## Docker Compose Examples
+
+Run distributed scenarios with a single command — see [`examples/README.md`](examples/README.md) for full details.
+
+| Profile | Command | Architecture |
+|---------|---------|-------------|
+| Basic fan-out | `docker compose --profile basic up` | [docs](examples/docs/basic.md) |
+| Chord + PostgreSQL | `docker compose --profile chord up` | [docs](examples/docs/chord.md) |
+| Weighted queues | `docker compose --profile priority up` | [docs](examples/docs/priority.md) |
+| RabbitMQ priority | `docker compose --profile amqp-priority up` | [docs](examples/docs/amqp-priority.md) |
+| Dashboard | `docker compose --profile dashboard up` | [docs](examples/docs/dashboard.md) |
+
 ## Crate Architecture
 
 | Crate | Description |
