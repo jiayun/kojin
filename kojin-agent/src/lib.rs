@@ -71,10 +71,12 @@
 pub mod concurrency;
 pub mod helpers;
 pub mod runner;
+pub mod sdd;
 pub mod task;
 
 // Re-export primary types for convenience
 pub use concurrency::SemaphoreRunner;
 pub use helpers::claude_sig;
 pub use runner::{ClaudeRunner, ProcessRunner, RunArgs, RunOutput};
+pub use sdd::{SddOutput, SddTask, sdd_sig};
 pub use task::ClaudeCodeTask;

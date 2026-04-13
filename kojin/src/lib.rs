@@ -62,7 +62,8 @@ pub use kojin_dashboard::{DashboardConfig, DashboardState, dashboard_router, spa
 // Re-export agent orchestration when feature is enabled
 #[cfg(feature = "agent")]
 pub use kojin_agent::{
-    ClaudeCodeTask, ClaudeRunner, ProcessRunner, RunArgs, RunOutput, SemaphoreRunner, claude_sig,
+    ClaudeCodeTask, ClaudeRunner, ProcessRunner, RunArgs, RunOutput, SddOutput, SddTask,
+    SemaphoreRunner, claude_sig, sdd_sig,
 };
 
 mod builder;
